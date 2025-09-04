@@ -35,7 +35,7 @@ It helps security teams and developers **detect passwords, tokens, API keys, pri
 
 ### Clone & install
 ```powershell
-git clone https://github.com/your-org/credaudit.git
+git clone https://github.com/azizinfosec-art/CredAudit
 cd credaudit
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -118,5 +118,3 @@ Always comply with your organization’s security policies.
 
 Authors are not responsible for misuse of this tool.
 
-yaml
-Copy code
