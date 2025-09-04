@@ -1,0 +1,14 @@
+include_ext: [".txt", ".json", ".env", ".docx", ".pdf", ".xlsx"]
+include_glob: []
+exclude_glob: ["**/.git/**", "**/__pycache__/**", "**/node_modules/**", "**/*.min.*"]
+workers: null
+threads: 8
+entropy_min_length: 20
+entropy_threshold: 4.0
+cache_file: ".credaudit_cache.json"
+rules:
+  enable_password_assignment: true
+  enable_jwt: true
+  enable_private_keys: true
+  enable_cloud_tokens: true
+  enable_entropy: true

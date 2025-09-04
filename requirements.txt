@@ -1,0 +1,6 @@
+jinja2
+python-docx
+pdfminer.six
+openpyxl
+pyyaml
+rarfile
