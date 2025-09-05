@@ -146,4 +146,4 @@ A lightweight cache (`.credaudit_cache.json`) stores file size/mtime and finding
 
 ## License
 
-MIT (or your project’s chosen license).
+MIT — see `LICENSE` for full text.

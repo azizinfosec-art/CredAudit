@@ -9,6 +9,10 @@ description = "Fast, resilient secret scanner"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["jinja2","python-docx","pdfminer.six","openpyxl","pyyaml","rarfile"]
+license = { file = "LICENSE" }
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+]
 [project.scripts]
 credaudit = "credaudit.cli:main"
 
