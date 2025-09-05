@@ -1,0 +1,44 @@
+name: CredAudit
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install CredAudit
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install .
+
+      - name: Run CredAudit scan
+        run: |
+          credaudit scan -p . --formats sarif html json --no-banner
+
+      - name: Upload SARIF to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: credaudit_out/report.sarif
+
+      - name: Upload CredAudit reports artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: credaudit-report
+          path: credaudit_out/

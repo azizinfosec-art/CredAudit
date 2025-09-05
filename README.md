@@ -158,3 +158,19 @@ A lightweight cache (`.credaudit_cache.json`) stores file size/mtime and finding
 ## License
 
 MIT — see `LICENSE` for full text.
+
+## CI and Pre-Commit
+
+- GitHub Actions:
+  - A workflow at `.github/workflows/credaudit.yml` runs CredAudit on pushes/PRs.
+  - Publishes SARIF to GitHub code scanning and uploads HTML/JSON artifacts.
+  - To customize, edit the workflow (e.g., paths, formats, or fail conditions).
+
+- Pre-commit hook:
+  - Config at `.pre-commit-config.yaml` runs a fast scan only on staged files.
+  - Setup:
+    - `pip install -e .` (ensure `credaudit` is importable)
+    - `pip install pre-commit`
+    - `pre-commit install`
+  - Optional: set `CREDAUDIT_FAIL_ON` to `Low`, `Medium`, or `High` (default `High`).
+    - Example: `CREDAUDIT_FAIL_ON=Medium pre-commit run --all-files`
