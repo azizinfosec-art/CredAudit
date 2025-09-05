@@ -1,44 +1,149 @@
-# CredAudit v0.3.4 (Final) — includes DOCX/XLSX/PDF parsers.
+# CredAudit v0.3.4
 
-# Usage
+Fast, resilient secret scanner for files and folders. Supports text, DOCX, PDF, and XLSX content with multiple report formats.
 
-CredAudit is a fast, resilient secret scanner for files and folders.
+## Installation
 
-## Basic Scan
+- Requirements: Python 3.9+
+- Local install (from this repo):
+  - `python -m pip install .`
+  - or dev mode: `python -m pip install -e .`
 
-Scan a file or directory for secrets:
+This installs the console command `credaudit`. You can also run via `python -m credaudit`.
 
-```sh
-python -m credaudit scan -p ./tests/secrets.txt --formats json
-```
+## Quickstart
 
-## Options
-
-- `-p, --path PATH` : Path to file or directory to scan.
-- `--formats FORMAT` : Output formats (json, csv, html, sarif).
-- `--config CONFIG` : Path to configuration file.
-- `--exclude EXCLUDE` : Glob patterns to exclude files/folders.
-- `--rules RULES` : Comma-separated list of rule names to enable.
-- `--disable-rules RULES` : Comma-separated list of rule names to disable.
-- `--entropy-threshold FLOAT` : Set entropy threshold for detection.
-- `--redact` : Redact secrets in output.
-- `--no-cache` : Disable scan caching.
-- `--show-severity` : Show severity in output.
-- `--show-context` : Show context around findings.
-- `--verbose` : Verbose output.
-- `--quiet` : Minimal output.
-- `--help` : Show help message.
-- `--version` : Show version information.
-
-## Other Commands
-
-- `validate-config` : Validate configuration file.
-- `list-rules` : List all detection rules.
-
-## Example
+Scan a file or directory and produce JSON/CSV/HTML reports:
 
 ```sh
-python -m credaudit scan -p ./my_project --formats html --redact --show-severity
+credaudit scan -p ./tests/secrets.txt --formats json csv html
+# or
+python -m credaudit scan -p ./tests/secrets.txt --formats json csv html
 ```
 
-This will scan all files in `my_project`, output results in HTML format, redact secrets, and show severity levels.
+Outputs are written to `./credaudit_out` by default.
+
+## Commands
+
+- `credaudit validate` — Validate config and show enabled parsers.
+- `credaudit rules` — List built‑in detection rules.
+- `credaudit scan` — Run a scan on files/folders.
+
+## Scan Options
+
+- `-p, --path PATH` — File or directory to scan.
+- `-o, --output-dir DIR` — Output directory (default: `./credaudit_out`).
+- `--formats FMT [...]` — Any of: `json`, `csv`, `html`, `sarif`.
+- `--include-ext EXT [...]` — Limit by extensions (e.g. `.env .json`).
+- `--include-glob PATTERN [...]` — Include files by glob (repeatable).
+- `--exclude-glob PATTERN [...]` — Exclude files by glob (repeatable).
+- `--ignore-file FILE` — Glob patterns file (like `.credauditignore`).
+- `--max-size MB` — Skip files larger than this size.
+- `--threads N` — Threads for file discovery.
+- `--workers N` — Processes for scanning.
+- `--list` — Dry-run: only list files that would be scanned.
+- `--timestamp` — Append a timestamp to report filenames.
+- `--fail-on {Low,Medium,High}` — Exit non‑zero if any finding ≥ threshold.
+- `--config PATH` — Path to `config.yaml` (default: `config.yaml`).
+- `--entropy-min-length INT` — Min token length for entropy rule (default: 20).
+- `--entropy-threshold FLOAT` — Entropy threshold (default: 4.0).
+- `--cache-file PATH` — Cache file (default: `.credaudit_cache.json`).
+- `--scan-archives` — (Placeholder) Flag for archive scanning.
+- `--archive-depth N` — Depth for nested archives.
+- `--no-cache` — Ignore cache; force full rescan.
+- `--verbose` — Verbose logging.
+
+## Examples
+
+- Dry run to see what would be scanned:
+  ```sh
+  credaudit scan -p . --list
+  ```
+
+- Include only `.env` files while excluding dependencies:
+  ```sh
+  credaudit scan -p . --include-ext .env --exclude-glob "**/node_modules/**" --exclude-glob "**/__pycache__/**"
+  ```
+
+- Use globs instead of extensions:
+  ```sh
+  credaudit scan -p . --include-glob "**/*.env" --include-glob "**/*.json"
+  ```
+
+- Stricter entropy to reduce noise:
+  ```sh
+  credaudit scan -p . --entropy-min-length 24 --entropy-threshold 4.5
+  ```
+
+- Fail CI if High severity found and timestamp reports:
+  ```sh
+  credaudit scan -p ./src --formats sarif json --fail-on High --timestamp
+  ```
+
+## Output Formats
+
+- `json` — Full findings (includes raw `match` and `redacted`).
+- `csv` — Columns: `file, rule, redacted, severity, line, context`.
+- `html` — Single‑page, sortable summary with severity coloring.
+- `sarif` — SARIF 2.1.0 for code scanning integrations.
+
+Note: JSON includes the raw matched value (`match`) for completeness. Handle with care.
+
+## What Gets Scanned
+
+By default, the following extensions are included:
+`.txt, .json, .env, .docx, .pdf, .xlsx`
+
+- Text files are read with encoding fallbacks (`utf‑8`, `utf‑16`, `latin‑1`).
+- DOCX: paragraph text extracted.
+- PDF: text extracted via `pdfminer.six`.
+- XLSX: cell values extracted; simple key/value heuristics for secrets (e.g., `password: value`).
+
+You can override defaults via `--include-ext` or `config.yaml`.
+
+## Rules
+
+Built‑in detections include:
+- Private keys (PEM)
+- AWS Access Key IDs
+- GitHub tokens
+- JWTs (validated for structure)
+- Password/secret assignments (strict and loose)
+- Slack webhook URLs
+- High‑entropy strings
+
+Run `credaudit rules` to list them.
+
+## Config File (`config.yaml`)
+
+Optional file loaded from the working directory by default.
+
+Example:
+
+```yaml
+include_ext: [".txt", ".json", ".env", ".docx", ".pdf", ".xlsx"]
+include_glob: []
+exclude_glob: ["**/.git/**", "**/__pycache__/**", "**/node_modules/**"]
+workers: null
+threads: 8
+entropy_min_length: 20
+entropy_threshold: 4.0
+cache_file: ".credaudit_cache.json"
+```
+
+CLI flags override these values for the current run.
+
+## Caching
+
+A lightweight cache (`.credaudit_cache.json`) stores file size/mtime and findings:
+- Unchanged files reuse cached findings to speed up repeated scans.
+- Use `--no-cache` to force a full rescan.
+
+## Exit Codes
+
+- `0` — Success; threshold not exceeded.
+- `2` — `--fail-on` threshold met or exceeded.
+
+## License
+
+MIT (or your project’s chosen license).
