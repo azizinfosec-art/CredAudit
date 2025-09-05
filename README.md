@@ -144,6 +144,16 @@ A lightweight cache (`.credaudit_cache.json`) stores file size/mtime and finding
 - `0` — Success; threshold not exceeded.
 - `2` — `--fail-on` threshold met or exceeded.
 
+## Versioning
+
+- Print version: `credaudit --version` or `credaudit -V`.
+- Banner also shows the current version in interactive output.
+- To bump the version in code and packaging metadata:
+  ```sh
+  python scripts/bump_version.py 0.3.5
+  ```
+  This updates `credaudit/__init__.py` and `pyproject.toml`.
+
 ## License
 
 MIT — see `LICENSE` for full text.

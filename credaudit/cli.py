@@ -116,6 +116,10 @@ def parse_common_args(p: argparse.ArgumentParser):
     return p
 def main(argv=None)->int:
     argv = argv or sys.argv[1:]
+    # Version flag (short and long) handled before argparse setup
+    if any(a in ('-V','--version') for a in argv):
+        print(f"CredAudit v{_VERSION}")
+        return 0
     if not argv or argv[0] in ('-h','--help'):
         print_banner('default')
         print(HELP_TEXT); return 0
