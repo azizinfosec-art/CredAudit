@@ -102,16 +102,32 @@ By default, the following extensions are included:
 
 You can override defaults via `--include-ext` or `config.yaml`.
 
+### Archive Scanning
+
+- Enable with `--scan-archives`; control nested depth with `--archive-depth N`.
+- Supported formats: `.zip`, `.tar`, `.tgz`, `.tar.gz`, `.rar`.
+- Safe extraction to a temporary directory with path traversal protection.
+- Only scans extracted files with supported extensions (same list as above).
+- Findings from archives show paths like: `archive.zip!inner/folder/file.env`.
+- Example:
+  ```sh
+  credaudit scan -p ./artifacts --scan-archives --archive-depth 2 --formats html json
+  ```
+
 ## Rules
 
 Built‑in detections include:
 - Private keys (PEM)
 - AWS Access Key IDs
+- AWS Secret Access Keys (contextual assignments)
 - GitHub tokens
 - JWTs (validated for structure)
 - Password/secret assignments (strict and loose)
 - Slack webhook URLs
 - High‑entropy strings
+- Azure Storage SAS URLs (with signatures)
+- Stripe secret keys (`sk_live_...`, `sk_test_...`)
+- Database connection URIs with embedded password (Postgres/MySQL/Mongo/Redis)
 
 Run `credaudit rules` to list them.
 
