@@ -1,4 +1,4 @@
-# CredAudit v0.3.4
+# CredAudit
 
 Fast, resilient secret scanner for files and folders. Supports text, DOCX, PDF, and XLSX content with multiple report formats.
 
@@ -21,7 +21,7 @@ credaudit scan -p ./tests/secrets.txt --formats json csv html
 python -m credaudit scan -p ./tests/secrets.txt --formats json csv html
 ```
 
-Outputs are written to `./credaudit_out` by default.
+Outputs are written to `./credaudit_out` by default. The banner shows only on interactive terminals; use `--no-banner` to silence it.
 
 ## Commands
 
@@ -52,6 +52,7 @@ Outputs are written to `./credaudit_out` by default.
 - `--archive-depth N` — Depth for nested archives.
 - `--no-cache` — Ignore cache; force full rescan.
 - `--verbose` — Verbose logging.
+- `--no-banner` — Suppress ASCII banner output.
 
 ## Examples
 

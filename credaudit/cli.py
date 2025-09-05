@@ -26,6 +26,10 @@ def print_banner(when: str = 'default', verbose: bool = False):
                 # Expand any full-width border line of '=' to match max content width
                 if s and all(ch == '=' for ch in s):
                     fixed.append('=' * max_len)
+                    continue
+                # Center version/tagline/URL lines for nicer layout
+                if s.startswith('CredAudit v') or s == 'Credential & Secret Scanner' or s.startswith('http') or s.startswith('github.com'):
+                    fixed.append(s.center(max_len))
                 else:
                     fixed.append(l)
             # Optionally remove a blank line immediately after the top border for a tighter frame
@@ -120,29 +124,35 @@ def main(argv=None)->int:
     if any(a in ('-V','--version') for a in argv):
         print(f"CredAudit v{_VERSION}")
         return 0
-    if not argv or argv[0] in ('-h','--help'):
-        print_banner('default')
-        print(HELP_TEXT); return 0
     parser=argparse.ArgumentParser(prog='credaudit', description='CredAudit secret scanner')
     sub=parser.add_subparsers(dest='command')
-    sub.add_parser('rules', help='Show built-in detection rules')
+    rules_p=sub.add_parser('rules', help='Show built-in detection rules')
+    rules_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
     validate_p=sub.add_parser('validate', help='Check config and show enabled parsers')
+    validate_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
     validate_p.add_argument('--config', default=DEFAULT_CONFIG_PATH, help='Path to config.yaml')
     scan_p=sub.add_parser('scan', help='Run a scan')
     parse_common_args(scan_p)
+    scan_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
+    if not argv:
+        print_banner('default')
+        parser.print_help(); return 0
     args=parser.parse_args(argv)
     if args.command=='rules':
-        print_banner('default')
+        if not getattr(args, 'no_banner', False):
+            print_banner('default')
         print_rules(); return 0
     elif args.command=='validate':
-        print_banner('default')
+        if not getattr(args, 'no_banner', False):
+            print_banner('default')
         cfg = Config.from_yaml(args.config or DEFAULT_CONFIG_PATH)
         do_validate(cfg); return 0
     elif args.command=='scan':
         cfg = Config.from_yaml(args.config or DEFAULT_CONFIG_PATH)
         cfg.merge_cli_overrides(vars(args))
         ignore_globs = load_ignore_file(args.ignore_file) if args.ignore_file else []
-        print_banner('scan', verbose=bool(args.verbose))
+        if not getattr(args, 'no_banner', False):
+            print_banner('scan', verbose=bool(args.verbose))
         files = collect_files(args.path or '.', cfg.include_ext, cfg.include_glob, cfg.exclude_glob,
                               threads=cfg.threads, ignore_globs=ignore_globs,
                               max_size_bytes=(args.max_size*1024*1024 if args.max_size else None),
@@ -156,6 +166,6 @@ def main(argv=None)->int:
         print(f'Scanned {len(files)} files; Findings: {len(findings)}')
         return code
     else:
-        print(HELP_TEXT); return 0
+        parser.print_help(); return 0
 if __name__=='__main__':
     raise SystemExit(main())
