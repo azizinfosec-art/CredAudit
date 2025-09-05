@@ -1,8 +1,8 @@
-import os
+import os, tempfile, zipfile, tarfile
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
-from typing import List
+from typing import List, Dict, Tuple
 from .utils.common import iter_files, match_globs, normalize_exts, load_ignore_file
-from .parsers.extract import extract_text_from_file
+from .parsers.extract import extract_text_from_file, TEXT_EXTS
 from .detection.scan import scan_text, serialize_findings
 from .cache import ScanCache
 
@@ -76,6 +76,7 @@ def scan_paths(
     workers: int | None,
     fail_on: str | None,
     scan_archives_flag: bool,
+    archive_depth: int,
     verbose: bool,
     no_cache: bool = False,
 ):
@@ -104,6 +105,123 @@ def scan_paths(
                     to_scan.append(p)
             else:
                 to_scan.append(p)
+    # Optional: expand archives into a temporary directory for scanning
+    path_alias: Dict[str, str] = {}
+
+    def _is_archive(path: str) -> bool:
+        lp = path.lower()
+        return lp.endswith('.zip') or lp.endswith('.rar') or lp.endswith('.tar') or lp.endswith('.tgz') or lp.endswith('.tar.gz')
+
+    allowed_exts = set(TEXT_EXTS) | {'.docx', '.pdf', '.xlsx'}
+
+    def _safe_join(base: str, *parts: str) -> str:
+        base_abs = os.path.abspath(base)
+        dest = os.path.abspath(os.path.normpath(os.path.join(base_abs, *parts)))
+        if not (dest == base_abs or dest.startswith(base_abs + os.sep)):
+            raise RuntimeError('Unsafe path outside extraction directory')
+        return dest
+
+    def _post_extract(archive_path: str, added: List[Tuple[str, str]], out_dir: str, depth: int) -> List[str]:
+        results: List[str] = []
+        for real, rel in added:
+            rel_norm = rel.replace('\\', '/')
+            if _is_archive(real) and depth > 0:
+                # Recurse into nested archives
+                sub_dir = _safe_join(out_dir, os.path.splitext(rel)[0] + '_x')
+                os.makedirs(sub_dir, exist_ok=True)
+                results.extend(_expand_any(real, sub_dir, depth - 1))
+                continue
+            ext = os.path.splitext(real)[1].lower()
+            if allowed_exts and ext not in allowed_exts:
+                try:
+                    os.remove(real)
+                except Exception:
+                    pass
+                continue
+            path_alias[real] = f"{archive_path}!{rel_norm}"
+            results.append(real)
+        return results
+
+    def _expand_zip(zip_path: str, out_dir: str, depth: int) -> List[str]:
+        added: List[Tuple[str, str]] = []
+        try:
+            with zipfile.ZipFile(zip_path) as z:
+                for n in z.namelist():
+                    if n.endswith('/'):
+                        continue
+                    dest = _safe_join(out_dir, n)
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    with z.open(n, 'r') as src, open(dest, 'wb') as dst:
+                        dst.write(src.read())
+                    added.append((dest, n))
+        except Exception:
+            return []
+        return _post_extract(zip_path, added, out_dir, depth)
+
+    def _expand_tar(tar_path: str, out_dir: str, depth: int) -> List[str]:
+        added: List[Tuple[str, str]] = []
+        try:
+            mode = 'r'
+            lp = tar_path.lower()
+            if lp.endswith('.tar.gz') or lp.endswith('.tgz'):
+                mode = 'r:gz'
+            with tarfile.open(tar_path, mode) as t:
+                for m in t.getmembers():
+                    if not m.isfile():
+                        continue
+                    dest = _safe_join(out_dir, m.name)
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    f = t.extractfile(m)
+                    if not f:
+                        continue
+                    with open(dest, 'wb') as dst:
+                        dst.write(f.read())
+                    added.append((dest, m.name))
+        except Exception:
+            return []
+        return _post_extract(tar_path, added, out_dir, depth)
+
+    def _expand_rar(rar_path: str, out_dir: str, depth: int) -> List[str]:
+        added: List[Tuple[str, str]] = []
+        try:
+            import rarfile  # lazy import
+            with rarfile.RarFile(rar_path) as rf:
+                for info in rf.infolist():
+                    if info.is_dir():
+                        continue
+                    dest = _safe_join(out_dir, info.filename)
+                    os.makedirs(os.path.dirname(dest), exist_ok=True)
+                    with rf.open(info, 'r') as src, open(dest, 'wb') as dst:
+                        dst.write(src.read())
+                    added.append((dest, info.filename))
+        except Exception:
+            return []
+        return _post_extract(rar_path, added, out_dir, depth)
+
+    def _expand_any(path: str, out_dir: str, depth: int) -> List[str]:
+        lp = path.lower()
+        if lp.endswith('.zip'):
+            return _expand_zip(path, out_dir, depth)
+        if lp.endswith('.rar'):
+            return _expand_rar(path, out_dir, depth)
+        if lp.endswith('.tar') or lp.endswith('.tar.gz') or lp.endswith('.tgz'):
+            return _expand_tar(path, out_dir, depth)
+        return []
+
+    tmp_ctx = None
+    if scan_archives_flag and to_scan:
+        tmp_ctx = tempfile.TemporaryDirectory(prefix='credaudit_ar_')
+        tmp_root = tmp_ctx.name
+        expanded: List[str] = []
+        for p in to_scan:
+            if _is_archive(p):
+                sub = os.path.join(tmp_root, os.path.basename(p) + '_x')
+                os.makedirs(sub, exist_ok=True)
+                expanded.extend(_expand_any(p, sub, max(0, int(archive_depth or 0))))
+            else:
+                expanded.append(p)
+        to_scan = expanded
+
     if to_scan:
         with ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2) as pp:
             futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh): p for p in to_scan}
@@ -113,6 +231,11 @@ def scan_paths(
                     _, f, st = fut.result()
                     if st == 'ok':
                         if f:
+                            if path_alias:
+                                for rec in f:
+                                    fp = rec.get('file')
+                                    if fp in path_alias:
+                                        rec['file'] = path_alias[fp]
                             findings_all.extend(f)
                         if not no_cache:
                             cache.update(p, f)
@@ -141,4 +264,3 @@ def scan_paths(
         if worst >= thr:
             code = 2
     return findings_all, code
-

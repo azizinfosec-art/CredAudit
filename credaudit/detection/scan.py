@@ -8,7 +8,21 @@ from ..utils.common import redact_secret
 class Finding:
     file: str; rule: str; match: str; redacted: str; context: str; severity: str; line: int
 def severity_for_rule(rule_name: str) -> str:
-    base={"PrivateKey":"High","AWSAccessKeyID":"High","GitHubToken":"High","JWT":"Medium","PasswordAssignment":"Medium","PasswordAssignmentLoose":"Medium","SlackWebhook":"Medium","APIKeyGeneric":"Medium","HighEntropyString":"Low"}
+    base={
+        "PrivateKey":"High",
+        "AWSAccessKeyID":"High",
+        "AWSSecretAccessKey":"High",
+        "GitHubToken":"High",
+        "StripeKey":"High",
+        "AzureSAS":"High",
+        "DBConnectionString":"Medium",
+        "JWT":"Medium",
+        "PasswordAssignment":"Medium",
+        "PasswordAssignmentLoose":"Medium",
+        "SlackWebhook":"Medium",
+        "APIKeyGeneric":"Medium",
+        "HighEntropyString":"Low",
+    }
     return base.get(rule_name,"Low")
 SUPPRESS_PHRASES = ["password policy","password manager","password length","min password","hashed password"]
 def _looks_like_jwt(token: str)->bool:

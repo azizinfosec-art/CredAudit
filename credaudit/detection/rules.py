@@ -63,5 +63,29 @@ def build_rules() -> List['Rule']:
         "Slack Incoming Webhook URL",
         "https://hooks.slack.com/services/...",
     ))
+    # New high-value rules
+    rules.append(Rule(
+        "AWSSecretAccessKey",
+        re.compile(r"(?ix)\b(aws[_-]?secret[_-]?access[_-]?key)\b\s*(=|:)\s*['\"]?([A-Za-z0-9/+=]{40})['\"]?"),
+        "AWS Secret Access Key (contextual assignment)",
+        "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    ))
+    rules.append(Rule(
+        "AzureSAS",
+        re.compile(r"(?i)https?://[a-z0-9.-]+\.core\.windows\.net/[^?\s]+\?[^\s]*sig=[A-Za-z0-9%+/=]{20,}"),
+        "Azure Storage SAS URL containing signature",
+        "https://acct.blob.core.windows.net/container/blob.txt?sv=...&sig=...",
+    ))
+    rules.append(Rule(
+        "StripeKey",
+        re.compile(r"\bsk_(live|test)_[A-Za-z0-9]{24,}\b"),
+        "Stripe secret key",
+        "sk_live_51H...",
+    ))
+    rules.append(Rule(
+        "DBConnectionString",
+        re.compile(r"(?ix)\b(postgres(?:ql)?|mysql|mongodb|rediss?)://[^\s:@/]+:([^\s@/]+)@[^\s]+"),
+        "Database connection URI with embedded password",
+        "postgres://user:pass@host:5432/db",
+    ))
     return rules
-

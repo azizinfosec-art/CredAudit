@@ -162,7 +162,8 @@ def main(argv=None)->int:
             return 0
         findings, code = scan_paths(files, args.output_dir, args.formats, args.timestamp,
                                     cfg.cache_file, cfg.entropy_min_length, cfg.entropy_threshold,
-                                    cfg.workers, args.fail_on, args.scan_archives, args.verbose, args.no_cache)
+                                    cfg.workers, args.fail_on, args.scan_archives, args.archive_depth,
+                                    args.verbose, args.no_cache)
         print(f'Scanned {len(files)} files; Findings: {len(findings)}')
         return code
     else:
