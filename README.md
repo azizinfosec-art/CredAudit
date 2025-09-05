@@ -151,7 +151,7 @@ A lightweight cache (`.credaudit_cache.json`) stores file size/mtime and finding
 - Banner also shows the current version in interactive output.
 - To bump the version in code and packaging metadata:
   ```sh
-  python scripts/bump_version.py 0.3.5
+  python scripts/bump_version.py 0.3.x
   ```
   This updates `credaudit/__init__.py` and `pyproject.toml`.
 
