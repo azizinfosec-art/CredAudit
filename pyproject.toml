@@ -3,21 +3,12 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "CredAudit"
-version = "0.2.2"
-description = "Fast, resilient secret scanner for local/shared folders with multi-format exports."
+name = "credaudit"
+version = "0.3.4"
+description = "Fast, resilient secret scanner"
 readme = "README.md"
 requires-python = ">=3.9"
-authors = [{ name="CredAudit Team"}]
-dependencies = [
-    "jinja2",
-    "python-docx",
-    "pdfminer.six",
-    "openpyxl",
-    "pyyaml",
-    "rarfile",
-]
-
+dependencies = ["jinja2","python-docx","pdfminer.six","openpyxl","pyyaml","rarfile"]
 [project.scripts]
 credaudit = "credaudit.cli:main"
 
