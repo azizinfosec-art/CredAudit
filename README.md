@@ -72,6 +72,40 @@ credaudit scan -p traffic.har --formats html
 xdg-open credaudit_out/report.html 2>/dev/null || true
 ```
 
+## macOS (Install & Use)
+
+Install (Terminal)
+
+```sh
+# 1) Ensure Python 3.9+ is available
+python3 --version
+
+# 2) Create and activate a virtualenv (recommended)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 3) Install CredAudit from this repo
+python -m pip install --upgrade pip
+python -m pip install -e .
+
+# 4) (Optional) Utilities for archive scanning
+# For RAR support (if using --scan-archives):
+brew install unar
+```
+
+Run scans
+
+```sh
+# Scan a folder and produce HTML/JSON/CSV
+credaudit scan -p . --formats html json csv
+
+# Scan a HAR capture (responses + requests)
+credaudit scan -p traffic.har --formats html
+
+# Open the HTML report
+open credaudit_out/report.html
+```
+
 ## Windows (Install & Use)
 
 Install (PowerShell)
