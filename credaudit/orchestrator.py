@@ -1,4 +1,4 @@
-import os, tempfile, zipfile, tarfile
+import os, tempfile, zipfile, tarfile, sys
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 from typing import List, Dict, Tuple
 from .utils.common import iter_files, match_globs, normalize_exts, load_ignore_file
@@ -243,7 +243,20 @@ def scan_paths(
                 expanded.append(p)
         to_scan = expanded
 
+    # Friendly progress: minimal spinner when interactive and not verbose
+    show_spinner = sys.stdout.isatty() and not verbose
+    spinner = ['|','/','-','\\']
+    spin_idx = 0
+    done = 0
+
+    if verbose:
+        # One-time tip line in verbose mode
+        print("Tip: Use --timestamp to version reports; set CREDAUDIT_HTML_MAX_ROWS to limit HTML size; use --no-cache to force rescan.")
+
     if to_scan:
+        total = len(to_scan)
+        if show_spinner:
+            print(f"Scanning {done}/{total} | Findings: {len(findings_all)} ", end='', flush=True)
         with ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2) as pp:
             futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes): p for p in to_scan}
             for fut in as_completed(futs):
@@ -263,6 +276,16 @@ def scan_paths(
                 except Exception as e:
                     if verbose:
                         print(f"[SKIP] {p}: exception {e}")
+                finally:
+                    done += 1
+                    if show_spinner:
+                        spin = spinner[spin_idx % len(spinner)]; spin_idx += 1
+                        msg = f"\r{spin} Scanning {done}/{total} | Findings: {len(findings_all)} "
+                        # Pad/truncate to avoid leftover chars
+                        sys.stdout.write(msg)
+                        sys.stdout.flush()
+        if show_spinner:
+            print()  # newline after spinner
     if not no_cache:
         cache.save()
     import datetime as _dt

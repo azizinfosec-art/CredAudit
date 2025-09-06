@@ -1,4 +1,4 @@
-import sys, argparse, os
+import sys, argparse, os, time
 from .config import Config, DEFAULT_CONFIG_PATH
 from .orchestrator import collect_files, scan_paths
 from .utils.common import load_ignore_file
@@ -186,13 +186,22 @@ def main(argv=None)->int:
         if args.list:
             for f in files: print(f)
             return 0
+        t_start = time.perf_counter()
         findings, code = scan_paths(files, args.output_dir, args.formats, args.timestamp,
                                     cfg.cache_file, cfg.entropy_min_length, cfg.entropy_threshold,
                                     cfg.workers, args.fail_on, args.scan_archives, args.archive_depth,
                                     args.verbose, args.no_cache,
                                     har_include=args.har_include,
                                     har_max_body_bytes=args.har_max_body_bytes)
-        print(f'Scanned {len(files)} files; Findings: {len(findings)}')
+        t_end = time.perf_counter()
+        elapsed = t_end - t_start
+        # Friendly end-of-run summary
+        sev_order = {'Low': 1, 'Medium': 2, 'High': 3}
+        cH = sum(1 for f in findings if (f.get('severity') or 'Low') == 'High')
+        cM = sum(1 for f in findings if (f.get('severity') or 'Low') == 'Medium')
+        cL = sum(1 for f in findings if (f.get('severity') or 'Low') == 'Low')
+        fmts = ','.join(args.formats)
+        print(f"Scanned {len(files)} files | Findings: {len(findings)} (H:{cH} M:{cM} L:{cL}) | Time: {elapsed:.2f}s | Reports: {args.output_dir} (formats: {fmts})")
         return code
     else:
         parser.print_help(); return 0
