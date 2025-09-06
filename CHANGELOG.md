@@ -1,5 +1,8 @@
 Changelog
 
+## 0.3.13 — 2025-09-06
+- Added provider-specific detections gated to Sensitivity L2/L3: Google API key, Slack tokens, SendGrid API key, GitLab PAT, npm token, OpenAI key, Telegram bot token, Twilio Account SID/Auth token
+
 ## 0.3.12 — 2025-09-06
 
 Highlights
@@ -13,4 +16,3 @@ Highlights
 Other
 - README updated to document new options and defaults
 - Default include extensions now include `.har`
-

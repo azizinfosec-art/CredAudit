@@ -22,6 +22,16 @@ def severity_for_rule(rule_name: str) -> str:
         "SlackWebhook":"Medium",
         "APIKeyGeneric":"Medium",
         "HighEntropyString":"Low",
+        # Provider-specific tokens
+        "GoogleAPIKey":"Medium",
+        "SlackToken":"High",
+        "SendGridKey":"High",
+        "GitLabPAT":"Medium",
+        "NpmToken":"Medium",
+        "OpenAIKey":"High",
+        "TelegramBotToken":"Medium",
+        "TwilioAccountSID":"Medium",
+        "TwilioAuthToken":"High",
     }
     return base.get(rule_name,"Low")
 SUPPRESS_PHRASES = ["password policy","password manager","password length","min password","hashed password"]

@@ -97,4 +97,60 @@ def build_rules(level: Optional[int] = None) -> List['Rule']:
         "Database connection URI with embedded password",
         "postgres://user:pass@host:5432/db",
     ))
+    if lvl >= 2:
+        # Provider-specific high-signal tokens (balanced/aggressive levels)
+        rules.append(Rule(
+            "GoogleAPIKey",
+            re.compile(r"\bAIza[0-9A-Za-z\-_]{35}\b"),
+            "Google API key",
+            "AIza...",
+        ))
+        rules.append(Rule(
+            "SlackToken",
+            re.compile(r"\bxox[abprs]-[0-9A-Za-z-]{10,48}\b"),
+            "Slack token",
+            "xoxb-...",
+        ))
+        rules.append(Rule(
+            "SendGridKey",
+            re.compile(r"\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b"),
+            "SendGrid API key",
+            "SG.xxxxx.yyyyy",
+        ))
+        rules.append(Rule(
+            "GitLabPAT",
+            re.compile(r"\bglpat-[A-Za-z0-9_-]{20,}\b"),
+            "GitLab personal access token",
+            "glpat-...",
+        ))
+        rules.append(Rule(
+            "NpmToken",
+            re.compile(r"\bnpm_[A-Za-z0-9]{36}\b"),
+            "npm token",
+            "npm_...",
+        ))
+        rules.append(Rule(
+            "OpenAIKey",
+            re.compile(r"\bsk-[A-Za-z0-9]{40,55}\b"),
+            "OpenAI API key",
+            "sk-...",
+        ))
+        rules.append(Rule(
+            "TelegramBotToken",
+            re.compile(r"\b[0-9]{9,10}:[A-Za-z0-9_-]{35}\b"),
+            "Telegram bot token",
+            "123456789:abcdef...",
+        ))
+        rules.append(Rule(
+            "TwilioAccountSID",
+            re.compile(r"\bAC[0-9a-fA-F]{32}\b"),
+            "Twilio Account SID",
+            "ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+        ))
+        rules.append(Rule(
+            "TwilioAuthToken",
+            re.compile(r"(?i)\btwilio[^\n]{0,30}\b([0-9a-f]{32})\b"),
+            "Twilio auth token (contextual)",
+            "twilio auth token: 0123abcd...",
+        ))
     return rules

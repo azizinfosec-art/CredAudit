@@ -1,6 +1,10 @@
-# CredAudit
+﻿# CredAudit
 
 Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HAR). Supports text, DOCX, PDF, XLSX, and HAR with multiple report formats.
+
+## What's New (v0.3.13)
+
+- Provider-specific detections (enabled at Sensitivity L2/L3): Google API key, Slack tokens, SendGrid API key, GitLab PAT, npm token, OpenAI key, Telegram bot token, Twilio Account SID/Auth token. L1 remains cautious.
 
 ## What's New (v0.3.12)
 
@@ -35,34 +39,34 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
 
 ## Commands
 
-- `credaudit validate` — Validate config and show enabled parsers.
-- `credaudit rules` — List built‑in detection rules.
-- `credaudit scan` — Run a scan on files/folders.
+- `credaudit validate` â€” Validate config and show enabled parsers.
+- `credaudit rules` â€” List builtâ€‘in detection rules.
+- `credaudit scan` â€” Run a scan on files/folders.
 
 ## Scan Options
 
-- `-p, --path PATH` — File or directory to scan.
-- `-o, --output-dir DIR` — Output directory (default: `./credaudit_out`).
-- `--formats FMT [...]` — Any of: `json`, `csv`, `html`, `sarif`.
-- `--include-ext EXT [...]` — Limit by extensions (e.g. `.env .json`).
-- `--include-glob PATTERN [...]` — Include files by glob (repeatable).
-- `--exclude-glob PATTERN [...]` — Exclude files by glob (repeatable).
-- `--ignore-file FILE` — Glob patterns file (like `.credauditignore`).
-- `--max-size MB` — Skip files larger than this size.
-- `--threads N` — Threads for file discovery.
-- `--workers N` — Processes for scanning.
-- `--list` — Dry-run: only list files that would be scanned.
-- `--timestamp` — Append a timestamp to report filenames.
-- `--fail-on {Low,Medium,High}` — Exit non‑zero if any finding ≥ threshold.
-- `--config PATH` — Path to `config.yaml` (default: `config.yaml`).
-- `--entropy-min-length INT` — Min token length for entropy rule (default: 20).
-- `--entropy-threshold FLOAT` — Entropy threshold (default: 4.0).
-- `--cache-file PATH` — Cache file (default: `.credaudit_cache.json`).
-- `--scan-archives` — (Placeholder) Flag for archive scanning.
-- `--archive-depth N` — Depth for nested archives.
-- `--no-cache` — Ignore cache; force full rescan.
-- `--verbose` — Verbose logging.
-- `--no-banner` — Suppress ASCII banner output.
+- `-p, --path PATH` â€” File or directory to scan.
+- `-o, --output-dir DIR` â€” Output directory (default: `./credaudit_out`).
+- `--formats FMT [...]` â€” Any of: `json`, `csv`, `html`, `sarif`.
+- `--include-ext EXT [...]` â€” Limit by extensions (e.g. `.env .json`).
+- `--include-glob PATTERN [...]` â€” Include files by glob (repeatable).
+- `--exclude-glob PATTERN [...]` â€” Exclude files by glob (repeatable).
+- `--ignore-file FILE` â€” Glob patterns file (like `.credauditignore`).
+- `--max-size MB` â€” Skip files larger than this size.
+- `--threads N` â€” Threads for file discovery.
+- `--workers N` â€” Processes for scanning.
+- `--list` â€” Dry-run: only list files that would be scanned.
+- `--timestamp` â€” Append a timestamp to report filenames.
+- `--fail-on {Low,Medium,High}` â€” Exit nonâ€‘zero if any finding â‰¥ threshold.
+- `--config PATH` â€” Path to `config.yaml` (default: `config.yaml`).
+- `--entropy-min-length INT` â€” Min token length for entropy rule (default: 20).
+- `--entropy-threshold FLOAT` â€” Entropy threshold (default: 4.0).
+- `--cache-file PATH` â€” Cache file (default: `.credaudit_cache.json`).
+- `--scan-archives` â€” (Placeholder) Flag for archive scanning.
+- `--archive-depth N` â€” Depth for nested archives.
+- `--no-cache` â€” Ignore cache; force full rescan.
+- `--verbose` â€” Verbose logging.
+- `--no-banner` â€” Suppress ASCII banner output.
 
 ## Examples
 
@@ -108,9 +112,9 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
 - `--max-size MB`: Skip files larger than MB
 - `--threads N`: Threads for file discovery
 - `--workers N`: Processes for scanning
-- `--list`: Dry-run — only list files to be scanned
+- `--list`: Dry-run â€” only list files to be scanned
 - `--timestamp`: Append timestamp to report filenames
-- `--fail-on {Low,Medium,High}`: Exit non-zero if any finding ≥ threshold
+- `--fail-on {Low,Medium,High}`: Exit non-zero if any finding â‰¥ threshold
 - `--config PATH`: Path to `config.yaml` (default: `config.yaml`)
 - `--entropy-min-length INT`: Min token length for entropy rule (default: 20)
 - `--entropy-threshold FLOAT`: Entropy threshold (default: 4.0)
@@ -126,7 +130,7 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
 
 ### Sensitivity
 
-- `--sensitivity {1,2,3}` — Rule sensitivity level:
+- `--sensitivity {1,2,3}` â€” Rule sensitivity level:
   - `1` (cautious): high-confidence rules only; entropy-based detection disabled
   - `2` (balanced, default): includes password/API key assignment rules + entropy
   - `3` (aggressive): same as 2 (entropy enabled). Future versions may add more generic patterns here.
@@ -141,15 +145,15 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
 
 ## Output Formats
 
-- `json` — Full findings (includes raw `match` and `redacted`).
-- `csv` — Columns: `file, rule, redacted, severity, line, context`.
-- `html` — Single‑page, sortable summary with severity coloring.
-- `sarif` — SARIF 2.1.0 for code scanning integrations.
+- `json` â€” Full findings (includes raw `match` and `redacted`).
+- `csv` â€” Columns: `file, rule, redacted, severity, line, context`.
+- `html` â€” Singleâ€‘page, sortable summary with severity coloring.
+- `sarif` â€” SARIF 2.1.0 for code scanning integrations.
 
 Notes:
 - JSON includes the raw matched value (`match`) for completeness. Handle with care.
 - The HTML displays a limited, lightweight view (default max 500 rows) to keep browsers responsive.
-- Use the “Full CSV” and “Full JSON” links in the report for complete data.
+- Use the â€œFull CSVâ€ and â€œFull JSONâ€ links in the report for complete data.
 - You can adjust the maximum embedded rows via env var: `CREDAUDIT_HTML_MAX_ROWS` (e.g., 1000).
 
 ## What Gets Scanned
@@ -157,7 +161,7 @@ Notes:
 By default, the following extensions are included:
 `.txt, .json, .env, .docx, .pdf, .xlsx, .har`
 
-- Text files are read with encoding fallbacks (`utf‑8`, `utf‑16`, `latin‑1`).
+- Text files are read with encoding fallbacks (`utfâ€‘8`, `utfâ€‘16`, `latinâ€‘1`).
 - DOCX: paragraph text extracted.
 - PDF: text extracted via `pdfminer.six`.
 - XLSX: cell values extracted; simple key/value heuristics for secrets (e.g., `password: value`).
@@ -186,9 +190,9 @@ You can override defaults via `--include-ext` or `config.yaml`.
   credaudit scan -p traffic.har --har-max-body-bytes 4194304
   ```
 
-## Rules
+Built-in detections include:
 
-Built‑in detections include:
+Builtâ€‘in detections include:
 - Private keys (PEM)
 - AWS Access Key IDs
 - AWS Secret Access Keys (contextual assignments)
@@ -196,10 +200,11 @@ Built‑in detections include:
 - JWTs (validated for structure)
 - Password/secret assignments (strict and loose)
 - Slack webhook URLs
-- High‑entropy strings
+- High-entropy strings
 - Azure Storage SAS URLs (with signatures)
 - Stripe secret keys (`sk_live_...`, `sk_test_...`)
 - Database connection URIs with embedded password (Postgres/MySQL/Mongo/Redis)
+ - Provider-specific tokens (enabled at Sensitivity L2/L3): Google API key (AIza...), Slack tokens (xox..), SendGrid (SG.xxx.yyy), GitLab PAT (glpat-...), npm token (npm_...), OpenAI key (sk-...), Telegram bot token (id:token), Twilio Account SID/Auth token
 
 Run `credaudit rules` to list them.
 
@@ -230,8 +235,8 @@ A lightweight cache (`.credaudit_cache.json`) stores file size/mtime and finding
 
 ## Exit Codes
 
-- `0` — Success; threshold not exceeded.
-- `2` — `--fail-on` threshold met or exceeded.
+- `0` â€” Success; threshold not exceeded.
+- `2` â€” `--fail-on` threshold met or exceeded.
 
 ## Versioning
 
@@ -245,7 +250,7 @@ A lightweight cache (`.credaudit_cache.json`) stores file size/mtime and finding
 
 ## License
 
-MIT — see `LICENSE` for full text.
+MIT â€” see `LICENSE` for full text.
 
 ## CI and Pre-Commit
 
