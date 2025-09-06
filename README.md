@@ -104,34 +104,34 @@ start credaudit_out\report.html
 
 ## Commands
 
-- `credaudit validate` â€” Validate config and show enabled parsers.
-- `credaudit rules` â€” List builtâ€‘in detection rules.
-- `credaudit scan` â€” Run a scan on files/folders.
+- `credaudit validate`  Validate config and show enabled parsers.
+- `credaudit rules`  List builtâ€‘in detection rules.
+- `credaudit scan`  Run a scan on files/folders.
 
 ## Scan Options
 
-- `-p, --path PATH` â€” File or directory to scan.
-- `-o, --output-dir DIR` â€” Output directory (default: `./credaudit_out`).
-- `--formats FMT [...]` â€” Any of: `json`, `csv`, `html`, `sarif`.
-- `--include-ext EXT [...]` â€” Limit by extensions (e.g. `.env .json`).
-- `--include-glob PATTERN [...]` â€” Include files by glob (repeatable).
-- `--exclude-glob PATTERN [...]` â€” Exclude files by glob (repeatable).
-- `--ignore-file FILE` â€” Glob patterns file (like `.credauditignore`).
-- `--max-size MB` â€” Skip files larger than this size.
-- `--threads N` â€” Threads for file discovery.
-- `--workers N` â€” Processes for scanning.
-- `--list` â€” Dry-run: only list files that would be scanned.
-- `--timestamp` â€” Append a timestamp to report filenames.
-- `--fail-on {Low,Medium,High}` â€” Exit nonâ€‘zero if any finding â‰¥ threshold.
-- `--config PATH` â€” Path to `config.yaml` (default: `config.yaml`).
-- `--entropy-min-length INT` â€” Min token length for entropy rule (default: 20).
-- `--entropy-threshold FLOAT` â€” Entropy threshold (default: 4.0).
-- `--cache-file PATH` â€” Cache file (default: `.credaudit_cache.json`).
-- `--scan-archives` â€” (Placeholder) Flag for archive scanning.
-- `--archive-depth N` â€” Depth for nested archives.
-- `--no-cache` â€” Ignore cache; force full rescan.
-- `--verbose` â€” Verbose logging.
-- `--no-banner` â€” Suppress ASCII banner output.
+- `-p, --path PATH` File or directory to scan.
+- `-o, --output-dir DIR`  Output directory (default: `./credaudit_out`).
+- `--formats FMT [...]` Any of: `json`, `csv`, `html`, `sarif`.
+- `--include-ext EXT [...]` Limit by extensions (e.g. `.env .json`).
+- `--include-glob PATTERN [...]`  Include files by glob (repeatable).
+- `--exclude-glob PATTERN [...]` Exclude files by glob (repeatable).
+- `--ignore-file FILE` Glob patterns file (like `.credauditignore`).
+- `--max-size MB` Skip files larger than this size.
+- `--threads N` Threads for file discovery.
+- `--workers N` Processes for scanning.
+- `--list` Dry-run: only list files that would be scanned.
+- `--timestamp`  Append a timestamp to report filenames.
+- `--fail-on {Low,Medium,High}` Exit nonâ€‘zero if any finding â‰¥ threshold.
+- `--config PATH`  Path to `config.yaml` (default: `config.yaml`).
+- `--entropy-min-length INT`  Min token length for entropy rule (default: 20).
+- `--entropy-threshold FLOAT`  Entropy threshold (default: 4.0).
+- `--cache-file PATH` Cache file (default: `.credaudit_cache.json`).
+- `--scan-archives` (Placeholder) Flag for archive scanning.
+- `--archive-depth N` Depth for nested archives.
+- `--no-cache` Ignore cache; force full rescan.
+- `--verbose` Verbose logging.
+- `--no-banner` Suppress ASCII banner output.
 
 ## Examples
 
