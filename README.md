@@ -88,7 +88,11 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
 - `html` — Single‑page, sortable summary with severity coloring.
 - `sarif` — SARIF 2.1.0 for code scanning integrations.
 
-Note: JSON includes the raw matched value (`match`) for completeness. Handle with care.
+Notes:
+- JSON includes the raw matched value (`match`) for completeness. Handle with care.
+- The HTML displays a limited, lightweight view (default max 500 rows) to keep browsers responsive.
+- Use the “Full CSV” and “Full JSON” links in the report for complete data.
+- You can adjust the maximum embedded rows via env var: `CREDAUDIT_HTML_MAX_ROWS` (e.g., 1000).
 
 ## What Gets Scanned
 

@@ -124,14 +124,29 @@ def main(argv=None)->int:
     if any(a in ('-V','--version') for a in argv):
         print(f"CredAudit v{_VERSION}")
         return 0
-    parser=argparse.ArgumentParser(prog='credaudit', description='CredAudit secret scanner')
+    parser=argparse.ArgumentParser(
+        prog='credaudit',
+        description='CredAudit secret scanner',
+        epilog=(
+            'Environment:\n'
+            '  CREDAUDIT_HTML_MAX_ROWS   Limit rows rendered in HTML report (default: 500)'
+        ),
+    )
     sub=parser.add_subparsers(dest='command')
     rules_p=sub.add_parser('rules', help='Show built-in detection rules')
     rules_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
     validate_p=sub.add_parser('validate', help='Check config and show enabled parsers')
     validate_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
     validate_p.add_argument('--config', default=DEFAULT_CONFIG_PATH, help='Path to config.yaml')
-    scan_p=sub.add_parser('scan', help='Run a scan')
+    scan_p=sub.add_parser(
+        'scan',
+        help='Run a scan',
+        description='Run a scan and export reports',
+        epilog=(
+            'Environment:\n'
+            '  CREDAUDIT_HTML_MAX_ROWS   Limit rows rendered in HTML report (default: 500)'
+        ),
+    )
     parse_common_args(scan_p)
     scan_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
     if not argv:
