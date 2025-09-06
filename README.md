@@ -37,6 +37,71 @@ python -m credaudit scan -p ./tests/secrets.txt --formats json csv html
 
 Outputs are written to `./credaudit_out` by default. The banner shows only on interactive terminals; use `--no-banner` to silence it.
 
+## Linux (Install & Use)
+
+Install (user environment)
+
+```sh
+# 1) Ensure Python 3.9+ is available
+python3 --version
+
+# 2) Create and activate a virtualenv (recommended)
+python3 -m venv .venv
+. .venv/bin/activate
+
+# 3) Install CredAudit from this repo
+python -m pip install --upgrade pip
+python -m pip install -e .
+
+# 4) (Optional) Utilities for archive scanning
+# RAR support: install unrar/unar if you plan to use --scan-archives
+# Debian/Ubuntu: sudo apt-get install unrar
+# macOS (Homebrew): brew install unar
+```
+
+Run scans
+
+```sh
+# Scan a folder and produce HTML/JSON/CSV
+credaudit scan -p . --formats html json csv
+
+# Scan a HAR capture (responses + requests)
+credaudit scan -p traffic.har --formats html
+
+# Open the HTML report
+xdg-open credaudit_out/report.html 2>/dev/null || true
+```
+
+## Windows (Install & Use)
+
+Install (PowerShell)
+
+```powershell
+# 1) Ensure Python 3.9+ is installed (Microsoft Store or python.org)
+py --version
+
+# 2) Create and activate a virtualenv (recommended)
+py -m venv .venv
+. .venv\Scripts\Activate.ps1
+
+# 3) Install CredAudit from this repo
+py -m pip install --upgrade pip
+py -m pip install -e .
+```
+
+Run scans
+
+```powershell
+# Scan a folder and produce HTML/JSON/CSV
+credaudit scan -p . --formats html json csv
+
+# Scan a HAR capture (responses + requests)
+credaudit scan -p traffic.har --formats html
+
+# Open the HTML report
+start credaudit_out\report.html
+```
+
 ## Commands
 
 - `credaudit validate` â€” Validate config and show enabled parsers.
