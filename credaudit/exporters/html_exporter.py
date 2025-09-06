@@ -103,6 +103,11 @@ TEMPLATE = """<!DOCTYPE html>
     </div>
   </div>
   <div class="summary"><div class="card" id="stats"></div></div>
+  <div class="summary">
+    <div class="card" id="tips">
+      <b>Tips:</b> Press <code>/</code> or <code>f</code> to focus search · <code>t</code> toggles theme · <code>r</code> shows/hides raw values · <code>Esc</code> clears filters · Click severity cards to toggle · Click headers to sort · Click a value to copy · Use pager and page size to navigate.
+    </div>
+  </div>
   <table id="tbl">
     <thead>
       <tr>

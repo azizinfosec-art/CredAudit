@@ -77,6 +77,8 @@ HAR Options:
   --har-include {both,responses,requests}
                          What bodies to scan inside .har (default: both)
   --har-max-body-bytes N  Max size per HAR body in bytes (default: 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)
+User Experience:
+  Spinner shown in TTY (suppressed with --verbose). End-of-run summary includes elapsed time.
 Examples:
   credaudit validate
       Validate config.yaml and show active parsers
@@ -146,7 +148,11 @@ def main(argv=None)->int:
         description='CredAudit secret scanner',
         epilog=(
             'Environment:\n'
-            '  CREDAUDIT_HTML_MAX_ROWS   Limit rows rendered in HTML report (default: 500)'
+            '  CREDAUDIT_HTML_MAX_ROWS   Limit rows rendered in HTML report (default: 500)\n'
+            '\n'
+            'UX:\n'
+            '  Shows a minimal spinner in TTY (suppressed with --verbose).\n'
+            '  Prints a compact end-of-run summary with elapsed time.'
         ),
     )
     sub=parser.add_subparsers(dest='command')
@@ -161,7 +167,11 @@ def main(argv=None)->int:
         description='Run a scan and export reports',
         epilog=(
             'Environment:\n'
-            '  CREDAUDIT_HTML_MAX_ROWS   Limit rows rendered in HTML report (default: 500)'
+            '  CREDAUDIT_HTML_MAX_ROWS   Limit rows rendered in HTML report (default: 500)\n'
+            '\n'
+            'UX:\n'
+            '  Minimal spinner appears in interactive terminals; use --verbose to see tips instead.\n'
+            '  Summary line includes severity counts and elapsed time.'
         ),
     )
     parse_common_args(scan_p)

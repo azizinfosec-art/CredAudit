@@ -9,6 +9,8 @@ Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HA
   - Options: --har-max-body-bytes N (bytes) or env CREDAUDIT_HAR_MAX_BODY_BYTES
 - HTML report: server-rendered rows so data shows without JavaScript; env CREDAUDIT_HTML_MAX_ROWS controls embedded rows (default 500)
 - CLI help: Environment section includes CREDAUDIT_HTML_MAX_ROWS; Scan help includes HAR options
+ - Sensitivity levels: --sensitivity {1,2,3} to choose cautious/balanced/aggressive rule sets
+ - CLI UX: interactive spinner progress (TTY) and end-of-run summary with elapsed time
 
 ## Installation
 
@@ -101,6 +103,13 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
   - `2` (balanced, default): includes password/API key assignment rules + entropy
   - `3` (aggressive): same as 2 (entropy enabled). Future versions may add more generic patterns here.
   - Aliases: `L1/L2/L3`, `low/medium/high`.
+
+### Progress & Summary
+
+- Minimal spinner shows during scanning in interactive terminals (TTY). Suppressed with `--verbose`.
+- Verbose mode prints a one-line tip instead of the spinner.
+- End-of-run summary includes severity counts and elapsed time, for example:
+  `Scanned 124 files | Findings: 38 (H:2 M:11 L:25) | Time: 7.42s | Reports: credaudit_out (formats: html,json,csv)`
 
 ## Output Formats
 
