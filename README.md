@@ -1,6 +1,14 @@
 # CredAudit
 
-Fast, resilient secret scanner for files and folders. Supports text, DOCX, PDF, and XLSX content with multiple report formats.
+Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HAR). Supports text, DOCX, PDF, XLSX, and HAR with multiple report formats.
+
+## What's New (v0.3.12)
+
+- HAR support: scan .har files exported with content (Burp/ZAP/DevTools)
+  - Options: --har-include {both,responses,requests}
+  - Options: --har-max-body-bytes N (bytes) or env CREDAUDIT_HAR_MAX_BODY_BYTES
+- HTML report: server-rendered rows so data shows without JavaScript; env CREDAUDIT_HTML_MAX_ROWS controls embedded rows (default 500)
+- CLI help: Environment section includes CREDAUDIT_HTML_MAX_ROWS; Scan help includes HAR options
 
 ## Installation
 
@@ -81,6 +89,11 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
   credaudit scan -p ./src --formats sarif json --fail-on High --timestamp
   ```
 
+### HAR Options
+
+- `--har-include {both,responses,requests}`: what to scan inside .har (default: both)
+- `--har-max-body-bytes N`: max size per HAR body in bytes (default 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)
+
 ## Output Formats
 
 - `json` — Full findings (includes raw `match` and `redacted`).
@@ -97,7 +110,7 @@ Notes:
 ## What Gets Scanned
 
 By default, the following extensions are included:
-`.txt, .json, .env, .docx, .pdf, .xlsx`
+`.txt, .json, .env, .docx, .pdf, .xlsx, .har`
 
 - Text files are read with encoding fallbacks (`utf‑8`, `utf‑16`, `latin‑1`).
 - DOCX: paragraph text extracted.
@@ -116,6 +129,16 @@ You can override defaults via `--include-ext` or `config.yaml`.
 - Example:
   ```sh
   credaudit scan -p ./artifacts --scan-archives --archive-depth 2 --formats html json
+  ```
+
+### HAR Support
+
+- CredAudit scans .har files (exported with content) and aggregates findings across entries.
+- Examples:
+  ```sh
+  credaudit scan -p traffic.har --formats html json csv
+  credaudit scan -p traffic.har --har-include responses --formats html
+  credaudit scan -p traffic.har --har-max-body-bytes 4194304
   ```
 
 ## Rules
@@ -142,7 +165,7 @@ Optional file loaded from the working directory by default.
 Example:
 
 ```yaml
-include_ext: [".txt", ".json", ".env", ".docx", ".pdf", ".xlsx"]
+include_ext: [".txt", ".json", ".env", ".docx", ".pdf", ".xlsx", ".har"]
 include_glob: []
 exclude_glob: ["**/.git/**", "**/__pycache__/**", "**/node_modules/**"]
 workers: null

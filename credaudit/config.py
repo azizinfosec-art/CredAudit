@@ -11,7 +11,7 @@ class RuleToggles:
     enable_entropy: bool = True
 @dataclass
 class Config:
-    include_ext: List[str] = field(default_factory=lambda: [".txt",".json",".env",".docx",".pdf",".xlsx"])
+    include_ext: List[str] = field(default_factory=lambda: [".txt",".json",".env",".docx",".pdf",".xlsx",".har"])
     include_glob: List[str] = field(default_factory=list)
     exclude_glob: List[str] = field(default_factory=lambda: ["**/.git/**","**/__pycache__/**","**/node_modules/**"])
     workers: Optional[int] = None
@@ -29,7 +29,7 @@ class Config:
         rules_data = data.get("rules", {})
         rules = RuleToggles(**rules_data) if isinstance(rules_data, dict) else RuleToggles()
         return Config(
-            include_ext=[e.lower() for e in data.get("include_ext", [".txt",".json",".env",".docx",".pdf",".xlsx"])],
+            include_ext=[e.lower() for e in data.get("include_ext", [".txt",".json",".env",".docx",".pdf",".xlsx",".har"])],
             include_glob=data.get("include_glob", []) or [],
             exclude_glob=data.get("exclude_glob", []) or ["**/.git/**","**/__pycache__/**","**/node_modules/**"],
             workers=data.get("workers"),

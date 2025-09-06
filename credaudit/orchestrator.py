@@ -58,7 +58,26 @@ def collect_files(
     return selected
 
 
-def _scan_file(p, ent_min, ent_thr):
+def _scan_file(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None):
+    ext = os.path.splitext(p)[1].lower()
+    if ext == '.har':
+        try:
+            from .parsers.har import iter_har_texts
+            include_requests = (har_include in (None, 'both', 'requests'))
+            include_responses = (har_include in (None, 'both', 'responses'))
+            if har_max_body_bytes is None:
+                try:
+                    import os as _os
+                    har_max_body_bytes = int(_os.environ.get('CREDAUDIT_HAR_MAX_BODY_BYTES', str(2*1024*1024)))
+                except Exception:
+                    har_max_body_bytes = 2*1024*1024
+            allf = []
+            for vid, txt in iter_har_texts(p, include_requests=include_requests, include_responses=include_responses,
+                                           max_body_bytes=int(har_max_body_bytes)):
+                allf.extend(serialize_findings(scan_text(vid, txt, ent_min, ent_thr)))
+            return p, allf, 'ok'
+        except Exception:
+            return p, [], 'unreadable'
     t = extract_text_from_file(p)
     if t is None:
         return p, [], 'unreadable'
@@ -79,6 +98,8 @@ def scan_paths(
     archive_depth: int,
     verbose: bool,
     no_cache: bool = False,
+    har_include: str | None = 'both',
+    har_max_body_bytes: int | None = None,
 ):
     os.makedirs(output_dir, exist_ok=True)
     from .exporters.json_exporter import export_json
@@ -224,7 +245,7 @@ def scan_paths(
 
     if to_scan:
         with ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2) as pp:
-            futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh): p for p in to_scan}
+            futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes): p for p in to_scan}
             for fut in as_completed(futs):
                 p = futs[fut]
                 try:

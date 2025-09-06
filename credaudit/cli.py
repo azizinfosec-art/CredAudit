@@ -61,6 +61,7 @@ File Filtering:
   --exclude-glob PATTERN [...] Exclude files matching glob(s)
   --ignore-file FILE          Use ignore list (like .credauditignore)
   --max-size MB               Skip files larger than MB
+  Supports scanning .har files exported with content (Burp/ZAP/DevTools)
 Performance:
   --threads N             Threads for file discovery
   --workers N             Processes for scanning
@@ -69,6 +70,10 @@ Advanced Features:
   --scan-archives         Enable scanning inside ZIP/RAR archives (optional)
   --archive-depth N       How deep to unpack nested archives
   --no-cache              Force full rescan (ignore cache)
+HAR Options:
+  --har-include {both,responses,requests}
+                         What bodies to scan inside .har (default: both)
+  --har-max-body-bytes N  Max size per HAR body in bytes (default: 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)
 Examples:
   credaudit validate
       Validate config.yaml and show active parsers
@@ -117,6 +122,12 @@ def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('--scan-archives', action='store_true', help='Scan inside ZIP/RAR archives (optional)')
     p.add_argument('--archive-depth', type=int, default=1, help='How deep to unpack nested archives')
     p.add_argument('--no-cache', action='store_true', help='Force full rescan (ignore cache)')
+    # HAR options
+    p.add_argument('--har-include', choices=['both','responses','requests'], default='both',
+                   help='When scanning .har: include responses, requests, or both (default: both)')
+    p.add_argument('--har-max-body-bytes', type=int,
+                   default=None,
+                   help='Maximum size of a single HAR body to scan in bytes (default: 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)')
     return p
 def main(argv=None)->int:
     argv = argv or sys.argv[1:]
@@ -178,7 +189,9 @@ def main(argv=None)->int:
         findings, code = scan_paths(files, args.output_dir, args.formats, args.timestamp,
                                     cfg.cache_file, cfg.entropy_min_length, cfg.entropy_threshold,
                                     cfg.workers, args.fail_on, args.scan_archives, args.archive_depth,
-                                    args.verbose, args.no_cache)
+                                    args.verbose, args.no_cache,
+                                    har_include=args.har_include,
+                                    har_max_body_bytes=args.har_max_body_bytes)
         print(f'Scanned {len(files)} files; Findings: {len(findings)}')
         return code
     else:
