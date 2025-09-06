@@ -96,6 +96,34 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
 - `--har-include {both,responses,requests}`: what to scan inside .har (default: both)
 - `--har-max-body-bytes N`: max size per HAR body in bytes (default 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)
 
+### All Scan Flags (complete)
+
+- `-p, --path PATH`: File or directory to scan
+- `-o, --output-dir DIR`: Output directory (default: `./credaudit_out`)
+- `--formats {json,csv,html,sarif} [...]`: One or more output formats
+- `--include-ext EXT [...]`: Only scan these extensions (e.g., `.env .json`)
+- `--include-glob PATTERN` (repeatable): Include files matching glob(s)
+- `--exclude-glob PATTERN` (repeatable): Exclude files matching glob(s)
+- `--ignore-file FILE`: Path to ignore patterns file (like `.credauditignore`)
+- `--max-size MB`: Skip files larger than MB
+- `--threads N`: Threads for file discovery
+- `--workers N`: Processes for scanning
+- `--list`: Dry-run — only list files to be scanned
+- `--timestamp`: Append timestamp to report filenames
+- `--fail-on {Low,Medium,High}`: Exit non-zero if any finding ≥ threshold
+- `--config PATH`: Path to `config.yaml` (default: `config.yaml`)
+- `--entropy-min-length INT`: Min token length for entropy rule (default: 20)
+- `--entropy-threshold FLOAT`: Entropy threshold (default: 4.0)
+- `--cache-file PATH`: Cache file name/path (default: `.credaudit_cache.json`)
+- `--scan-archives`: Scan inside ZIP/TAR/RAR archives (optional)
+- `--archive-depth N`: How deep to unpack nested archives
+- `--no-cache`: Force full rescan (ignore cache)
+- `--verbose`: Verbose logging with skip reasons
+- `--no-banner`: Suppress ASCII banner output
+- `--har-include {both,responses,requests}`: What bodies to scan in `.har`
+- `--har-max-body-bytes N`: Max size per HAR body (bytes); env `CREDAUDIT_HAR_MAX_BODY_BYTES`
+- `--sensitivity {1,2,3}`: Rule sensitivity (1=cautious, 2=balanced, 3=aggressive)
+
 ### Sensitivity
 
 - `--sensitivity {1,2,3}` — Rule sensitivity level:
