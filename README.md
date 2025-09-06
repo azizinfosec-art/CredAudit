@@ -361,3 +361,54 @@ Convert NDJSON to reports later (no rescan):
 ```sh
 credaudit convert --in credaudit_out/live.ndjson --out credaudit_out/live_report --formats html csv
 ```
+
+### Big Scans (Large Shares)
+
+When scanning very large shares (hundreds of GBs or more), prefer NDJSON streaming and a light HTML summary.
+
+Linux/macOS:
+```sh
+# See what will be scanned (scope early)
+credaudit scan -p /mnt/share --list --include-ext .txt .json .env --no-banner
+
+# Stream findings + generate a light HTML summary
+credaudit scan -p /mnt/share \
+  --include-ext .txt .json .env \
+  --max-size 10 \
+  --sensitivity 1 \
+  --threads 32 --workers 8 \
+  --ndjson-out credaudit_out/findings.ndjson \
+  --formats html --timestamp --no-banner
+
+# Convert NDJSON to full HTML/CSV later (no rescan)
+credaudit convert --in credaudit_out/findings.ndjson --out credaudit_out/full_report --formats html csv
+```
+
+Windows (PowerShell):
+```powershell
+# Scope and list
+credaudit scan -p \\server\share --list --include-ext .txt .json .env --no-banner
+
+# Stream findings + light HTML
+credaudit scan -p \\server\share `
+  --include-ext .txt .json .env `
+  --max-size 10 `
+  --sensitivity 1 `
+  --threads 32 --workers 8 `
+  --ndjson-out credaudit_out\findings.ndjson `
+  --formats html --timestamp --no-banner
+
+# Convert later
+credaudit convert --in credaudit_out\findings.ndjson --out credaudit_out\full_report --formats html csv
+```
+
+NDJSON rotation (Linux/macOS via logrotate):
+```
+credaudit_out/*.ndjson {
+  size 50M
+  rotate 5
+  compress
+  missingok
+  copytruncate
+}
+```
