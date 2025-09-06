@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import List, Pattern
+from typing import List, Pattern, Optional
 
 
 @dataclass
@@ -11,7 +11,15 @@ class Rule:
     example: str
 
 
-def build_rules() -> List['Rule']:
+def build_rules(level: Optional[int] = None) -> List['Rule']:
+    """Return rule set for the given sensitivity level.
+
+    Levels:
+      1 (cautious): high-confidence provider-specific rules only
+      2 (balanced): level 1 + generic password/API key assignments
+      3 (aggressive): same as level 2 (entropy handled in scanner)
+    """
+    lvl = int(level or 2)
     rules: List[Rule] = []
     rules.append(Rule(
         "PrivateKey",
@@ -37,26 +45,27 @@ def build_rules() -> List['Rule']:
         "JWT",
         "eyJ...",
     ))
-    # Explicit separators near a password-like keyword
-    rules.append(Rule(
-        "PasswordAssignment",
-        re.compile(r"\b(password|pass|pwd|secret|apikey|api_key|token)\b\s*(=|:|=>|:=|->)\s*[\"']?([^\s\"']{4,})[\"']?", re.IGNORECASE),
-        "Password/secret assignment (explicit separators)",
-        "password: secret123",
-    ))
-    # Whitespace-separated or with common separators, with basic strength guards
-    rules.append(Rule(
-        "PasswordAssignmentLoose",
-        re.compile(r"(?ix)\b(password|pass|pwd|secret|api[-_]?key|token)\b(?:\s*(?:=|:|=>|:=|->)\s*|\s{1,3})[\"']?(?=[^\s\"']{6,})(?=[^\s\"']*(?:\d|[^A-Za-z]))([^\s\"']+)[\"']?"),
-        "Password/secret assignment with whitespace or separators (guarded)",
-        "password secret123",
-    ))
-    rules.append(Rule(
-        "APIKeyGeneric",
-        re.compile(r"\b(sk|pk)-[A-Za-z0-9]{10,}\b"),
-        "Generic API key",
-        "sk-abc123...",
-    ))
+    if lvl >= 2:
+        # Explicit separators near a password-like keyword
+        rules.append(Rule(
+            "PasswordAssignment",
+            re.compile(r"\b(password|pass|pwd|secret|apikey|api_key|token)\b\s*(=|:|=>|:=|->)\s*[\"']?([^\s\"']{4,})[\"']?", re.IGNORECASE),
+            "Password/secret assignment (explicit separators)",
+            "password: secret123",
+        ))
+        # Whitespace-separated or with common separators, with basic strength guards
+        rules.append(Rule(
+            "PasswordAssignmentLoose",
+            re.compile(r"(?ix)\b(password|pass|pwd|secret|api[-_]?key|token)\b(?:\s*(?:=|:|=>|:=|->)\s*|\s{1,3})[\"']?(?=[^\s\"']{6,})(?=[^\s\"']*(?:\d|[^A-Za-z]))([^\s\"']+)[\"']?"),
+            "Password/secret assignment with whitespace or separators (guarded)",
+            "password secret123",
+        ))
+        rules.append(Rule(
+            "APIKeyGeneric",
+            re.compile(r"\b(sk|pk)-[A-Za-z0-9]{10,}\b"),
+            "Generic API key",
+            "sk-abc123...",
+        ))
     rules.append(Rule(
         "SlackWebhook",
         re.compile(r"https://hooks\.slack\.com/services/[A-Za-z0-9/_-]{20,}"),

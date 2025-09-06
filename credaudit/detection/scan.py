@@ -1,6 +1,6 @@
 import re, json, base64
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from .rules import build_rules
 from ..utils.entropy import shannon_entropy
 from ..utils.common import redact_secret
@@ -38,9 +38,10 @@ def _looks_like_jwt(token: str)->bool:
         return isinstance(h,dict) and isinstance(p,dict)
     except Exception:
         return False
-def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0)->List[Finding]:
+def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Optional[int] = None)->List[Finding]:
     out=[]; lines=text.splitlines(); joined=text
-    for r in build_rules():
+    # Select rule set by sensitivity level (None implies default 2)
+    for r in build_rules(rule_level):
         for m in r.pattern.finditer(joined):
             s=m.group(0); start=m.start(); line=joined.count('\n',0,start)+1; ctx=lines[line-1][:200] if 0<line<=len(lines) else s[:200]
             low=s.lower()
@@ -53,9 +54,11 @@ def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0)->List[Finding]
                 if r.name=='JWT' and not _looks_like_jwt(s): 
                     continue
                 out.append(Finding(path,r.name,s,redact_secret(s),ctx,sev,line))
-    for t in re.findall(r"[A-Za-z0-9+/=_-]{20,}", joined):
-        if len(t)>=entropy_min_len and shannon_entropy(t)>=entropy_thresh:
-            pos=joined.find(t); line=joined.count('\n',0,pos)+1; ctx=lines[line-1][:200] if 0<line<=len(lines) else t[:200]
-            out.append(Finding(path,'HighEntropyString',t,redact_secret(t),ctx,'Low',line))
+    # Entropy-based detection is disabled at level 1 to reduce noise
+    if (rule_level or 2) >= 2:
+        for t in re.findall(r"[A-Za-z0-9+/=_-]{20,}", joined):
+            if len(t)>=entropy_min_len and shannon_entropy(t)>=entropy_thresh:
+                pos=joined.find(t); line=joined.count('\n',0,pos)+1; ctx=lines[line-1][:200] if 0<line<=len(lines) else t[:200]
+                out.append(Finding(path,'HighEntropyString',t,redact_secret(t),ctx,'Low',line))
     return out
 def serialize_findings(l: List[Finding])->List[Dict[str,Any]]: return [asdict(x) for x in l]

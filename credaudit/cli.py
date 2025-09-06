@@ -70,6 +70,9 @@ Advanced Features:
   --scan-archives         Enable scanning inside ZIP/RAR archives (optional)
   --archive-depth N       How deep to unpack nested archives
   --no-cache              Force full rescan (ignore cache)
+Sensitivity:
+  --sensitivity {1,2,3}   Rule sensitivity: 1=cautious, 2=balanced (default), 3=aggressive
+                           Aliases: L1/L2/L3 or low/medium/high
 HAR Options:
   --har-include {both,responses,requests}
                          What bodies to scan inside .har (default: both)
@@ -122,6 +125,9 @@ def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('--scan-archives', action='store_true', help='Scan inside ZIP/RAR archives (optional)')
     p.add_argument('--archive-depth', type=int, default=1, help='How deep to unpack nested archives')
     p.add_argument('--no-cache', action='store_true', help='Force full rescan (ignore cache)')
+    # Sensitivity (rule level)
+    p.add_argument('--sensitivity', choices=['1','2','3','L1','L2','L3','low','medium','high','cautious','balanced','aggressive'],
+                   help='Rule sensitivity: 1/L1/low (cautious), 2/L2/medium (balanced), 3/L3/high (aggressive)')
     # HAR options
     p.add_argument('--har-include', choices=['both','responses','requests'], default='both',
                    help='When scanning .har: include responses, requests, or both (default: both)')
@@ -187,12 +193,21 @@ def main(argv=None)->int:
             for f in files: print(f)
             return 0
         t_start = time.perf_counter()
+        # Map sensitivity to numeric rule level
+        sens_map = {
+            None: None,
+            '1': 1, 'L1': 1, 'low': 1, 'cautious': 1,
+            '2': 2, 'L2': 2, 'medium': 2, 'balanced': 2,
+            '3': 3, 'L3': 3, 'high': 3, 'aggressive': 3,
+        }
+        rule_level = sens_map.get(getattr(args, 'sensitivity', None))
         findings, code = scan_paths(files, args.output_dir, args.formats, args.timestamp,
                                     cfg.cache_file, cfg.entropy_min_length, cfg.entropy_threshold,
                                     cfg.workers, args.fail_on, args.scan_archives, args.archive_depth,
                                     args.verbose, args.no_cache,
                                     har_include=args.har_include,
-                                    har_max_body_bytes=args.har_max_body_bytes)
+                                    har_max_body_bytes=args.har_max_body_bytes,
+                                    rule_level=rule_level)
         t_end = time.perf_counter()
         elapsed = t_end - t_start
         # Friendly end-of-run summary
@@ -201,7 +216,8 @@ def main(argv=None)->int:
         cM = sum(1 for f in findings if (f.get('severity') or 'Low') == 'Medium')
         cL = sum(1 for f in findings if (f.get('severity') or 'Low') == 'Low')
         fmts = ','.join(args.formats)
-        print(f"Scanned {len(files)} files | Findings: {len(findings)} (H:{cH} M:{cM} L:{cL}) | Time: {elapsed:.2f}s | Reports: {args.output_dir} (formats: {fmts})")
+        sens_txt = {1:'L1/cautious',2:'L2/balanced',3:'L3/aggressive'}.get(rule_level or 2, 'L2/balanced')
+        print(f"Scanned {len(files)} files | Findings: {len(findings)} (H:{cH} M:{cM} L:{cL}) | Sensitivity: {sens_txt} | Time: {elapsed:.2f}s | Reports: {args.output_dir} (formats: {fmts})")
         return code
     else:
         parser.print_help(); return 0

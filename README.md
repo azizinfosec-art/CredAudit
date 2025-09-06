@@ -94,6 +94,14 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
 - `--har-include {both,responses,requests}`: what to scan inside .har (default: both)
 - `--har-max-body-bytes N`: max size per HAR body in bytes (default 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)
 
+### Sensitivity
+
+- `--sensitivity {1,2,3}` — Rule sensitivity level:
+  - `1` (cautious): high-confidence rules only; entropy-based detection disabled
+  - `2` (balanced, default): includes password/API key assignment rules + entropy
+  - `3` (aggressive): same as 2 (entropy enabled). Future versions may add more generic patterns here.
+  - Aliases: `L1/L2/L3`, `low/medium/high`.
+
 ## Output Formats
 
 - `json` — Full findings (includes raw `match` and `redacted`).
