@@ -77,6 +77,12 @@ HAR Options:
   --har-include {both,responses,requests}
                          What bodies to scan inside .har (default: both)
   --har-max-body-bytes N  Max size per HAR body in bytes (default: 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)
+NDJSON Options:
+  --ndjson-out PATH       Append findings to NDJSON during scan (append-only)
+  --ndjson-truncate       Truncate NDJSON file before writing
+  --ndjson-flush-sec SEC  Flush NDJSON at least every SEC seconds (default: 1.0)
+  --ndjson-buffer N       Flush NDJSON after N findings (default: 100)
+  --ndjson-include-raw    Include raw matched values (redacted-only by default)
 User Experience:
   Spinner shown in TTY (suppressed with --verbose). End-of-run summary includes elapsed time.
 Examples:
@@ -136,6 +142,12 @@ def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('--har-max-body-bytes', type=int,
                    default=None,
                    help='Maximum size of a single HAR body to scan in bytes (default: 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)')
+    # NDJSON live output
+    p.add_argument('--ndjson-out', dest='ndjson_out', help='Append findings to NDJSON file (append-only)')
+    p.add_argument('--ndjson-truncate', action='store_true', help='Truncate NDJSON output file before writing')
+    p.add_argument('--ndjson-flush-sec', type=float, help='Flush NDJSON at least every SEC seconds (default: 1.0)')
+    p.add_argument('--ndjson-buffer', type=int, help='Flush NDJSON after N findings (default: 100)')
+    p.add_argument('--ndjson-include-raw', action='store_true', help='Include raw matched values in NDJSON (redacted only by default)')
     return p
 def main(argv=None)->int:
     argv = argv or sys.argv[1:]
@@ -176,6 +188,10 @@ def main(argv=None)->int:
     )
     parse_common_args(scan_p)
     scan_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
+    convert_p=sub.add_parser('convert', help='Convert NDJSON findings to reports')
+    convert_p.add_argument('--in', dest='inp', required=True, help='Input NDJSON path')
+    convert_p.add_argument('--out', dest='out', required=True, help='Output base path (without extension)')
+    convert_p.add_argument('--formats', nargs='+', choices=['html','csv'], default=['html'])
     if not argv:
         print_banner('default')
         parser.print_help(); return 0
@@ -217,7 +233,12 @@ def main(argv=None)->int:
                                     args.verbose, args.no_cache,
                                     har_include=args.har_include,
                                     har_max_body_bytes=args.har_max_body_bytes,
-                                    rule_level=rule_level)
+                                    rule_level=rule_level,
+                                    ndjson_out=getattr(args,'ndjson_out',None),
+                                    ndjson_truncate=bool(getattr(args,'ndjson_truncate',False)),
+                                    ndjson_flush_sec=getattr(args,'ndjson_flush_sec',None),
+                                    ndjson_buffer=getattr(args,'ndjson_buffer',None),
+                                    ndjson_include_raw=bool(getattr(args,'ndjson_include_raw',False)))
         t_end = time.perf_counter()
         elapsed = t_end - t_start
         # Friendly end-of-run summary
@@ -233,3 +254,40 @@ def main(argv=None)->int:
         parser.print_help(); return 0
 if __name__=='__main__':
     raise SystemExit(main())
+    elif args.command=='convert':
+        # Lazy import exporters
+        from .exporters.html_exporter import export_html
+        from .exporters.csv_exporter import export_csv
+        import json
+        def _load_ndjson(pth: str):
+            out = []
+            with open(pth, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                        rec = obj.get('finding') if 'finding' in obj else obj
+                        # Normalize keys as expected by exporters
+                        rec2 = {
+                            'file': rec.get('file',''),
+                            'rule': rec.get('rule',''),
+                            'match': rec.get('match',''),
+                            'redacted': rec.get('redacted', rec.get('value','')),
+                            'context': rec.get('context',''),
+                            'severity': rec.get('severity','Low'),
+                            'line': rec.get('line',''),
+                        }
+                        out.append(rec2)
+                    except Exception:
+                        continue
+            return out
+        findings = _load_ndjson(args.inp)
+        os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
+        if 'html' in args.formats:
+            export_html(findings, args.out + '.html')
+        if 'csv' in args.formats:
+            export_csv(findings, args.out + '.csv')
+        print(f'Converted {len(findings)} findings -> {args.out}.({" ".join(args.formats)})')
+        return 0

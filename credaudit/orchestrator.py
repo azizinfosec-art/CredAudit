@@ -101,6 +101,11 @@ def scan_paths(
     har_include: str | None = 'both',
     har_max_body_bytes: int | None = None,
     rule_level: int | None = None,
+    ndjson_out: str | None = None,
+    ndjson_truncate: bool | None = None,
+    ndjson_flush_sec: float | None = None,
+    ndjson_buffer: int | None = None,
+    ndjson_include_raw: bool | None = None,
 ):
     os.makedirs(output_dir, exist_ok=True)
     from .exporters.json_exporter import export_json
@@ -254,6 +259,20 @@ def scan_paths(
         # One-time tip line in verbose mode
         print("Tip: Use --timestamp to version reports; set CREDAUDIT_HTML_MAX_ROWS to limit HTML size; use --no-cache to force rescan.")
 
+    nd_writer = None
+    if ndjson_out:
+        try:
+            from .exporters.ndjson_exporter import NDJSONWriter
+            nd_writer = NDJSONWriter(
+                ndjson_out,
+                truncate=bool(ndjson_truncate or False),
+                flush_sec=float(ndjson_flush_sec or 1.0),
+                buffer_size=int(ndjson_buffer or 100),
+                include_raw=bool(ndjson_include_raw or False),
+            )
+        except Exception:
+            nd_writer = None
+
     if to_scan:
         total = len(to_scan)
         if show_spinner:
@@ -272,6 +291,11 @@ def scan_paths(
                                     if fp in path_alias:
                                         rec['file'] = path_alias[fp]
                             findings_all.extend(f)
+                            if nd_writer is not None:
+                                try:
+                                    nd_writer.add_findings(f)
+                                except Exception:
+                                    pass
                         if not no_cache:
                             cache.update(p, f)
                 except Exception as e:
@@ -287,6 +311,11 @@ def scan_paths(
                         sys.stdout.flush()
         if show_spinner:
             print()  # newline after spinner
+    if nd_writer is not None:
+        try:
+            nd_writer.close()
+        except Exception:
+            pass
     if not no_cache:
         cache.save()
     import datetime as _dt

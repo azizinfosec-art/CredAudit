@@ -16,3 +16,6 @@ Highlights
 Other
 - README updated to document new options and defaults
 - Default include extensions now include `.har`
+## 0.3.14 — 2025-09-06
+- Added NDJSON streaming: --ndjson-out, --ndjson-truncate, --ndjson-flush-sec, --ndjson-buffer, --ndjson-include-raw
+- Added `credaudit convert` to generate HTML/CSV from NDJSON without rescanning
