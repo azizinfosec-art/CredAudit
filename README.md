@@ -5,6 +5,7 @@ Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HA
 ## What's New (v0.3.15)
 
 - Per-file timeout to prevent runs stalling on corrupt/huge files: `--per-file-timeout SEC` (default 120; 0 disables). Timed-out files are skipped and reported with `--verbose`.
+- Deterministic exports: JSON/CSV/HTML/SARIF are now sorted by `file`, then `line`, then `rule` for stable outputs across runs. `--list` output is also sorted. (NDJSON remains streamed in completion order by design.)
 
 ## What's New (v0.3.13)
 

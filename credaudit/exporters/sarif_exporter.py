@@ -1,7 +1,10 @@
 import json, os
+from .. import __version__ as _VERSION
+
 LEVEL_MAP={"High":"error","Medium":"warning","Low":"note"}
+
 def export_sarif(findings, p):
-    runs=[{"tool":{"driver":{"name":"CredAudit","version":"0.3.4"}},"results":[]}]
+    runs=[{"tool":{"driver":{"name":"CredAudit","version":_VERSION}},"results":[]}]
     for f in findings:
         runs[0]["results"].append({
             "ruleId": f.get("rule","Secret"),

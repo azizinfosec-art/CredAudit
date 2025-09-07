@@ -56,6 +56,11 @@ def collect_files(
                 selected.append(res)
                 if verbose:
                     print(res)
+    # Deterministic ordering for stable output and --list
+    try:
+        selected.sort(key=lambda s: s.replace('\\\\','/').lower())
+    except Exception:
+        selected.sort()
     return selected
 
 
@@ -356,6 +361,16 @@ def scan_paths(
                         sys.stdout.flush()
         if show_spinner:
             print()  # newline after spinner
+    # Deterministic ordering for exported reports (JSON/CSV/HTML/SARIF)
+    try:
+        findings_all.sort(key=lambda r: (
+            str(r.get('file','')).replace('\\\\','/').lower(),
+            int(r.get('line', 0) or 0),
+            str(r.get('rule',''))
+        ))
+    except Exception:
+        pass
+
     if nd_writer is not None:
         try:
             nd_writer.close()
