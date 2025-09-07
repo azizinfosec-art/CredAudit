@@ -1,5 +1,5 @@
 import os
-TEXT_EXTS={'.txt','.json','.env','.log','.cfg','.ini','.yaml','.yml','.py','.js'}
+TEXT_EXTS={'.txt','.json','.env','.log','.cfg','.ini','.yaml','.yml','.py','.js','.toml'}
 KEYWORDS = {"password","pass","pwd","secret","apikey","api_key","api-key","token"}
 def read_text_with_fallback(p):
     for enc in ['utf-8','utf-16','latin-1']:

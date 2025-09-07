@@ -1,0 +1,326 @@
+[
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\.github\\workflows\\credaudit.yml",
+    "rule": "HighEntropyString",
+    "match": "github/codeql-action/upload-sarif",
+    "redacted": "gith**********arif",
+    "context": "        uses: github/codeql-action/upload-sarif@v3",
+    "severity": "Low",
+    "line": 36
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\.pre-commit-config.yaml",
+    "rule": "HighEntropyString",
+    "match": "CREDAUDIT_FAIL_ON=Medium",
+    "redacted": "CRED**********dium",
+    "context": "        #   CREDAUDIT_FAIL_ON=Medium pre-commit run --all-files",
+    "severity": "Low",
+    "line": 12
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\banner.txt",
+    "rule": "PasswordAssignmentLoose",
+    "match": "Secret Scanner",
+    "redacted": "Secr**********nner",
+    "context": "     Credential & Secret Scanner",
+    "severity": "Medium",
+    "line": 13
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "HighEntropyString",
+    "match": "com/azizinfosec-art/CredAudit",
+    "redacted": "com/**********udit",
+    "context": "        rendered = tmpl.format(VERSION=_VERSION, URL='https://github.com/azizinfosec-art/CredAudit')",
+    "severity": "Low",
+    "line": 19
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "Secret Scanner'",
+    "redacted": "Secr**********ner'",
+    "context": "                if s.startswith('CredAudit v') or s == 'Credential & Secret Scanner' or s.startswith('http') or s.startswith('github.com'):",
+    "severity": "Medium",
+    "line": 31
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "pass\n\nHELP_TEXT",
+    "redacted": "pass**********TEXT",
+    "context": "        pass",
+    "severity": "Medium",
+    "line": 43
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "token (e.g.,",
+    "redacted": "toke**********.g.,",
+    "context": "    print(\"- GitHubToken: GitHub-style token (e.g., ghp_...)\")",
+    "severity": "Medium",
+    "line": 105
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "Token (e.g.,",
+    "redacted": "Toke**********.g.,",
+    "context": "    print(\"- JWT: JSON Web Token (e.g., eyJ...)\")",
+    "severity": "Medium",
+    "line": 106
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignment",
+    "match": "password: secret123)\"",
+    "redacted": "pass**********23)\"",
+    "context": "    print(\"- PasswordAssignment: Password/secret assignment (explicit) (e.g., password: secret123)\")",
+    "severity": "Medium",
+    "line": 107
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "secret assignment",
+    "redacted": "secr**********ment",
+    "context": "    print(\"- PasswordAssignment: Password/secret assignment (explicit) (e.g., password: secret123)\")",
+    "severity": "Medium",
+    "line": 107
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "password: secret123)\"",
+    "redacted": "pass**********23)\"",
+    "context": "    print(\"- PasswordAssignment: Password/secret assignment (explicit) (e.g., password: secret123)\")",
+    "severity": "Medium",
+    "line": 107
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "password secret123)\"",
+    "redacted": "pass**********23)\"",
+    "context": "    print(\"- PasswordAssignmentLoose: Password with whitespace or separators (guarded) (e.g., password secret123)\")",
+    "severity": "Medium",
+    "line": 108
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "HighEntropyString",
+    "match": "default=DEFAULT_CONFIG_PATH",
+    "redacted": "defa**********PATH",
+    "context": "    p.add_argument('--config', default=DEFAULT_CONFIG_PATH, help='Path to config.yaml')",
+    "severity": "Low",
+    "line": 130
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "token length'",
+    "redacted": "toke**********gth'",
+    "context": "    p.add_argument('--entropy-min-length', type=int, dest='entropy_min_length', help='Entropy min token length')",
+    "severity": "Medium",
+    "line": 131
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "secret scanner'",
+    "redacted": "secr**********ner'",
+    "context": "        description='CredAudit secret scanner',",
+    "severity": "Medium",
+    "line": 165
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\cli.py",
+    "rule": "HighEntropyString",
+    "match": "default=DEFAULT_CONFIG_PATH",
+    "redacted": "defa**********PATH",
+    "context": "    validate_p.add_argument('--config', default=DEFAULT_CONFIG_PATH, help='Path to config.yaml')",
+    "severity": "Low",
+    "line": 180
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "secret assignment",
+    "redacted": "secr**********ment",
+    "context": "            \"Password/secret assignment (explicit separators)\",",
+    "severity": "Medium",
+    "line": 53
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignment",
+    "match": "password: secret123\"",
+    "redacted": "pass**********123\"",
+    "context": "            \"password: secret123\",",
+    "severity": "Medium",
+    "line": 54
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "password: secret123\"",
+    "redacted": "pass**********123\"",
+    "context": "            \"password: secret123\",",
+    "severity": "Medium",
+    "line": 54
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "secret assignment",
+    "redacted": "secr**********ment",
+    "context": "            \"Password/secret assignment with whitespace or separators (guarded)\",",
+    "severity": "Medium",
+    "line": 60
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "password secret123\"",
+    "redacted": "pass**********123\"",
+    "context": "            \"password secret123\",",
+    "severity": "Medium",
+    "line": 61
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "Secret Access",
+    "redacted": "Secr**********cess",
+    "context": "        \"AWS Secret Access Key (contextual assignment)\",",
+    "severity": "Medium",
+    "line": 79
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "AWSSecretAccessKey",
+    "match": "aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\"",
+    "redacted": "aws_**********KEY\"",
+    "context": "        \"aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",",
+    "severity": "High",
+    "line": 80
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "HighEntropyString",
+    "match": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "redacted": "wJal**********EKEY",
+    "context": "        \"aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",",
+    "severity": "Low",
+    "line": 80
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "DBConnectionString",
+    "match": "postgres://user:pass@host:5432/db\",",
+    "redacted": "post**********db\",",
+    "context": "        \"postgres://user:pass@host:5432/db\",",
+    "severity": "Medium",
+    "line": 98
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "token (contextual)\"",
+    "redacted": "toke**********al)\"",
+    "context": "            \"Twilio auth token (contextual)\",",
+    "severity": "Medium",
+    "line": 153
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignment",
+    "match": "token: 0123abcd...\"",
+    "redacted": "toke**********...\"",
+    "context": "            \"twilio auth token: 0123abcd...\",",
+    "severity": "Medium",
+    "line": 154
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\rules.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "token: 0123abcd...\"",
+    "redacted": "toke**********...\"",
+    "context": "            \"twilio auth token: 0123abcd...\",",
+    "severity": "Medium",
+    "line": 154
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\scan.py",
+    "rule": "PasswordAssignment",
+    "match": "token: str)->bool:",
+    "redacted": "toke**********ool:",
+    "context": "def _looks_like_jwt(token: str)->bool:",
+    "severity": "Medium",
+    "line": 38
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\credaudit\\detection\\scan.py",
+    "rule": "PasswordAssignmentLoose",
+    "match": "token: str)->bool:",
+    "redacted": "toke**********ool:",
+    "context": "def _looks_like_jwt(token: str)->bool:",
+    "severity": "Medium",
+    "line": 38
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\tests\\secrets.txt",
+    "rule": "PasswordAssignment",
+    "match": "password: secret123",
+    "redacted": "pass**********t123",
+    "context": "password: secret123",
+    "severity": "Medium",
+    "line": 2
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\tests\\secrets.txt",
+    "rule": "PasswordAssignmentLoose",
+    "match": "password: secret123",
+    "redacted": "pass**********t123",
+    "context": "password: secret123",
+    "severity": "Medium",
+    "line": 2
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\tests\\secrets.txt",
+    "rule": "APIKeyGeneric",
+    "match": "sk-abcde1234567890",
+    "redacted": "sk-a**********7890",
+    "context": "api_key=sk-abcde1234567890",
+    "severity": "Medium",
+    "line": 3
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\tests\\secrets.txt",
+    "rule": "HighEntropyString",
+    "match": "api_key=sk-abcde1234567890",
+    "redacted": "api_**********7890",
+    "context": "api_key=sk-abcde1234567890",
+    "severity": "Low",
+    "line": 3
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\tests\\secrets.txt",
+    "rule": "PasswordAssignment",
+    "match": "api_key=sk-abcde1234567890",
+    "redacted": "api_**********7890",
+    "context": "api_key=sk-abcde1234567890",
+    "severity": "Medium",
+    "line": 3
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\tests\\secrets.txt",
+    "rule": "PasswordAssignmentLoose",
+    "match": "api_key=sk-abcde1234567890",
+    "redacted": "api_**********7890",
+    "context": "api_key=sk-abcde1234567890",
+    "severity": "Medium",
+    "line": 3
+  }
+]
