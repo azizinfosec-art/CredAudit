@@ -24,6 +24,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            pyproject.toml
 
       - name: Upgrade pip
         run: python -m pip install --upgrade pip
@@ -38,4 +42,3 @@ jobs:
           CREDAUDIT_AUTHOR_URL: 'https://github.com/azizinfosec-art/CredAudit'
         run: |
           python -m unittest discover -s tests -p "test_*.py"
-

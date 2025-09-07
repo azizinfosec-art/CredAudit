@@ -1,21 +1,33 @@
-Changelog
+# Changelog
 
-## 0.3.13 — 2025-09-06
-- Added provider-specific detections gated to Sensitivity L2/L3: Google API key, Slack tokens, SendGrid API key, GitLab PAT, npm token, OpenAI key, Telegram bot token, Twilio Account SID/Auth token
+All notable changes to this project will be documented in this file.
 
-## 0.3.12 — 2025-09-06
+The format is based on Keep a Changelog, and this project adheres to Semantic Versioning (SemVer). During 0.x, breaking changes are noted but use MINOR version bumps unless 1.0 is proposed.
 
-Highlights
-- HAR support: scan `.har` files exported with content (Burp/ZAP/DevTools)
-  - Options: `--har-include {both,responses,requests}`
-  - Options: `--har-max-body-bytes N` (bytes) and env `CREDAUDIT_HAR_MAX_BODY_BYTES`
-- HTML report UX: server-rendered rows so data shows without JavaScript; env `CREDAUDIT_HTML_MAX_ROWS` controls embedded rows (default 500)
-- Sensitivity levels: `--sensitivity {1,2,3}` (L1 cautious, L2 balanced, L3 aggressive)
-- CLI UX: interactive spinner (TTY), verbose tip line, end-of-run summary with elapsed time
+## [0.4.0] - 2025-09-07 (Asia/Kuwait, GMT+3)
 
-Other
-- README updated to document new options and defaults
-- Default include extensions now include `.har`
-## 0.3.14 — 2025-09-06
-- Added NDJSON streaming: --ndjson-out, --ndjson-truncate, --ndjson-flush-sec, --ndjson-buffer, --ndjson-include-raw
-- Added `credaudit convert` to generate HTML/CSV from NDJSON without rescanning
+### Added
+- CLI: `--only-rules` to restrict detection to specific rules. Accepts names or numeric indices (from `credaudit rules`).
+- HTML: new cyber‑hacker themed dashboard (dark neon, two‑pane layout, sticky header/footer, keyboard shortcuts). Exporter now prefers external template at `credaudit/html_templates/report.html.j2`.
+- Docs: `docs/SCHEMA.md` defining NDJSON/JSON/CSV/SARIF fields.
+- Tests: end‑to‑end tests for NDJSON/JSON/HTML/HAR/ZIP.
+- Formats: `.toml` added to supported text extensions.
+
+### Changed
+- Rules: `PasswordAssignment` now also matches JSON‑quoted style (e.g., `"password":"value"`) with minimal, safe tweak to reduce misses without adding noise.
+- Exports: deterministic ordering across JSON/CSV/HTML/SARIF (by file → line → rule).
+- SARIF: driver version uses the package `__version__`.
+
+### Fixed
+- N/A
+
+### Deprecated
+- None
+
+### Removed
+- None
+
+### Security
+- None
+
+[0.4.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.3.16...v0.4.0
