@@ -35,7 +35,7 @@ Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HA
 
 ## Installation
 
-- Requirements: Python 3.9+
+- Requirements: Python 3.10+
 - Local install (from this repo):
   - `python -m pip install .`
   - or dev mode: `python -m pip install -e .`
@@ -59,7 +59,7 @@ Outputs are written to `./credaudit_out` by default. The banner shows only on in
 Install (user environment)
 
 ```sh
-# 1) Ensure Python 3.9+ is available
+# 1) Ensure Python 3.10+ is available
 python3 --version
 
 # 2) Create and activate a virtualenv (recommended)
@@ -94,7 +94,7 @@ xdg-open credaudit_out/report.html 2>/dev/null || true
 Install (PowerShell)
 
 ```powershell
-# 1) Ensure Python 3.9+ is installed (Microsoft Store or python.org)
+# 1) Ensure Python 3.10+ is installed (Microsoft Store or python.org)
 py --version
 
 # 2) Create and activate a virtualenv (recommended)
