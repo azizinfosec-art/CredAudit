@@ -205,6 +205,41 @@ def main(argv=None)->int:
             print_banner('default')
         cfg = Config.from_yaml(args.config or DEFAULT_CONFIG_PATH)
         do_validate(cfg); return 0
+    elif args.command=='convert':
+        from .exporters.html_exporter import export_html
+        from .exporters.csv_exporter import export_csv
+        import json
+        def _load_ndjson(pth: str):
+            out = []
+            with open(pth, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        obj = json.loads(line)
+                        rec = obj.get('finding') if 'finding' in obj else obj
+                        rec2 = {
+                            'file': rec.get('file',''),
+                            'rule': rec.get('rule',''),
+                            'match': rec.get('match',''),
+                            'redacted': rec.get('redacted', rec.get('value','')),
+                            'context': rec.get('context',''),
+                            'severity': rec.get('severity','Low'),
+                            'line': rec.get('line',''),
+                        }
+                        out.append(rec2)
+                    except Exception:
+                        continue
+            return out
+        findings = _load_ndjson(args.inp)
+        os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
+        if 'html' in args.formats:
+            export_html(findings, args.out + '.html')
+        if 'csv' in args.formats:
+            export_csv(findings, args.out + '.csv')
+        print(f"Converted {len(findings)} findings -> {args.out}.({' '.join(args.formats)})")
+        return 0
     elif args.command=='scan':
         cfg = Config.from_yaml(args.config or DEFAULT_CONFIG_PATH)
         cfg.merge_cli_overrides(vars(args))
@@ -254,40 +289,3 @@ def main(argv=None)->int:
         parser.print_help(); return 0
 if __name__=='__main__':
     raise SystemExit(main())
-    elif args.command=='convert':
-        # Lazy import exporters
-        from .exporters.html_exporter import export_html
-        from .exporters.csv_exporter import export_csv
-        import json
-        def _load_ndjson(pth: str):
-            out = []
-            with open(pth, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        obj = json.loads(line)
-                        rec = obj.get('finding') if 'finding' in obj else obj
-                        # Normalize keys as expected by exporters
-                        rec2 = {
-                            'file': rec.get('file',''),
-                            'rule': rec.get('rule',''),
-                            'match': rec.get('match',''),
-                            'redacted': rec.get('redacted', rec.get('value','')),
-                            'context': rec.get('context',''),
-                            'severity': rec.get('severity','Low'),
-                            'line': rec.get('line',''),
-                        }
-                        out.append(rec2)
-                    except Exception:
-                        continue
-            return out
-        findings = _load_ndjson(args.inp)
-        os.makedirs(os.path.dirname(args.out) or '.', exist_ok=True)
-        if 'html' in args.formats:
-            export_html(findings, args.out + '.html')
-        if 'csv' in args.formats:
-            export_csv(findings, args.out + '.csv')
-        print(f'Converted {len(findings)} findings -> {args.out}.({" ".join(args.formats)})')
-        return 0
