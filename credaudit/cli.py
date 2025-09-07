@@ -83,6 +83,8 @@ NDJSON Options:
   --ndjson-flush-sec SEC  Flush NDJSON at least every SEC seconds (default: 1.0)
   --ndjson-buffer N       Flush NDJSON after N findings (default: 100)
   --ndjson-include-raw    Include raw matched values (redacted-only by default)
+Timeouts:
+  --per-file-timeout SEC  Kill and skip a file if scanning exceeds SEC seconds (default: 120; 0=disable)
 User Experience:
   Spinner shown in TTY (suppressed with --verbose). End-of-run summary includes elapsed time.
 Examples:
@@ -148,6 +150,9 @@ def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('--ndjson-flush-sec', type=float, help='Flush NDJSON at least every SEC seconds (default: 1.0)')
     p.add_argument('--ndjson-buffer', type=int, help='Flush NDJSON after N findings (default: 100)')
     p.add_argument('--ndjson-include-raw', action='store_true', help='Include raw matched values in NDJSON (redacted only by default)')
+    # Timeouts
+    p.add_argument('--per-file-timeout', type=float, default=120.0,
+                   help='Kill and skip a file if scanning exceeds SEC seconds (0 disables)')
     return p
 def main(argv=None)->int:
     argv = argv or sys.argv[1:]
@@ -273,7 +278,8 @@ def main(argv=None)->int:
                                     ndjson_truncate=bool(getattr(args,'ndjson_truncate',False)),
                                     ndjson_flush_sec=getattr(args,'ndjson_flush_sec',None),
                                     ndjson_buffer=getattr(args,'ndjson_buffer',None),
-                                    ndjson_include_raw=bool(getattr(args,'ndjson_include_raw',False)))
+                                    ndjson_include_raw=bool(getattr(args,'ndjson_include_raw',False)),
+                                    per_file_timeout=getattr(args,'per_file_timeout', None))
         t_end = time.perf_counter()
         elapsed = t_end - t_start
         # Friendly end-of-run summary

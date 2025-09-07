@@ -1,5 +1,6 @@
 import os, tempfile, zipfile, tarfile, sys
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+from multiprocessing import Process, Queue
 from typing import List, Dict, Tuple
 from .utils.common import iter_files, match_globs, normalize_exts, load_ignore_file
 from .parsers.extract import extract_text_from_file, TEXT_EXTS
@@ -58,7 +59,7 @@ def collect_files(
     return selected
 
 
-def _scan_file(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None, rule_level: int | None = None):
+def _scan_file_inner(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None, rule_level: int | None = None):
     ext = os.path.splitext(p)[1].lower()
     if ext == '.har':
         try:
@@ -84,6 +85,46 @@ def _scan_file(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_bo
     return p, serialize_findings(scan_text(p, t, ent_min, ent_thr, rule_level)), 'ok'
 
 
+def _scan_file_runner(q: Queue, p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level):
+    try:
+        res = _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level)
+    except Exception:
+        res = (p, [], 'error')
+    try:
+        q.put(res)
+    except Exception:
+        pass
+
+
+def _scan_file(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None, rule_level: int | None = None, per_file_timeout: float | None = None):
+    # If no timeout configured, run inline in this process (original behavior)
+    if not per_file_timeout or per_file_timeout <= 0:
+        return _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level)
+    # Run actual scan in a child process so we can terminate on timeout
+    try:
+        q: Queue = Queue(maxsize=1)
+        proc = Process(target=_scan_file_runner, args=(q, p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level))
+        proc.daemon = True
+        proc.start()
+        proc.join(per_file_timeout)
+        if proc.is_alive():
+            try:
+                proc.terminate()
+            finally:
+                try:
+                    proc.join(1)
+                except Exception:
+                    pass
+            return p, [], 'timeout'
+        try:
+            res = q.get_nowait()
+            return res
+        except Exception:
+            return p, [], 'error'
+    except Exception:
+        return p, [], 'error'
+
+
 def scan_paths(
     paths: List[str],
     output_dir: str,
@@ -106,6 +147,7 @@ def scan_paths(
     ndjson_flush_sec: float | None = None,
     ndjson_buffer: int | None = None,
     ndjson_include_raw: bool | None = None,
+    per_file_timeout: float | None = None,
 ):
     os.makedirs(output_dir, exist_ok=True)
     from .exporters.json_exporter import export_json
@@ -278,7 +320,7 @@ def scan_paths(
         if show_spinner:
             print(f"Scanning {done}/{total} | Findings: {len(findings_all)} ", end='', flush=True)
         with ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2) as pp:
-            futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes, rule_level): p for p in to_scan}
+            futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes, rule_level, per_file_timeout): p for p in to_scan}
             for fut in as_completed(futs):
                 p = futs[fut]
                 try:
@@ -298,6 +340,9 @@ def scan_paths(
                                     pass
                         if not no_cache:
                             cache.update(p, f)
+                    elif st in ('timeout', 'error'):
+                        if verbose:
+                            print(f"[SKIP] {p}: {st}")
                 except Exception as e:
                     if verbose:
                         print(f"[SKIP] {p}: exception {e}")
