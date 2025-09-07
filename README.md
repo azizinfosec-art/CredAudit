@@ -2,6 +2,10 @@
 
 Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HAR). Supports text, DOCX, PDF, XLSX, and HAR with multiple report formats.
 
+## What's New (v0.3.15)
+
+- Per-file timeout to prevent runs stalling on corrupt/huge files: `--per-file-timeout SEC` (default 120; 0 disables). Timed-out files are skipped and reported with `--verbose`.
+
 ## What's New (v0.3.13)
 
 - Provider-specific detections (enabled at Sensitivity L2/L3): Google API key, Slack tokens, SendGrid API key, GitLab PAT, npm token, OpenAI key, Telegram bot token, Twilio Account SID/Auth token. L1 remains cautious.
@@ -132,6 +136,7 @@ start credaudit_out\report.html
 - `--no-cache` Ignore cache; force full rescan.
 - `--verbose` Verbose logging.
 - `--no-banner` Suppress ASCII banner output.
+- `--per-file-timeout SEC` Kill and skip a file if scanning exceeds SEC seconds (default 120; set 0 to disable).
 
 ## Examples
 
@@ -158,6 +163,11 @@ start credaudit_out\report.html
 - Fail CI if High severity found and timestamp reports:
   ```sh
   credaudit scan -p ./src --formats sarif json --fail-on High --timestamp
+  ```
+  
+- Prevent stalling on very slow files by enforcing a timeout and see skipped files with verbose:
+  ```sh
+  credaudit scan -p . --per-file-timeout 120 --formats json --timestamp --verbose
   ```
 
 ### HAR Options
@@ -189,6 +199,7 @@ start credaudit_out\report.html
 - `--no-cache`: Force full rescan (ignore cache)
 - `--verbose`: Verbose logging with skip reasons
 - `--no-banner`: Suppress ASCII banner output
+- `--per-file-timeout SEC`: Kill and skip a file if scanning exceeds SEC seconds (default 120; 0 disables)
 - `--har-include {both,responses,requests}`: What bodies to scan in `.har`
 - `--har-max-body-bytes N`: Max size per HAR body (bytes); env `CREDAUDIT_HAR_MAX_BODY_BYTES`
 - `--sensitivity {1,2,3}`: Rule sensitivity (1=cautious, 2=balanced, 3=aggressive)
