@@ -7,7 +7,7 @@ name = "credaudit"
 version = "0.4.0"
 description = "Fast, resilient secret scanner"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = ["jinja2","python-docx","pdfminer.six","openpyxl","pyyaml","rarfile"]
 license = { file = "LICENSE" }
 classifiers = [
