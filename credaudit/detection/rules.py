@@ -47,16 +47,19 @@ def build_rules(level: Optional[int] = None) -> List['Rule']:
     ))
     if lvl >= 2:
         # Explicit separators near a password-like keyword
+        # Allow an optional closing quote immediately after the keyword to support JSON-style keys
+        # Examples matched: password: value, "password": "value"
         rules.append(Rule(
             "PasswordAssignment",
-            re.compile(r"\b(password|pass|pwd|secret|apikey|api_key|token)\b\s*(=|:|=>|:=|->)\s*[\"']?([^\s\"']{4,})[\"']?", re.IGNORECASE),
+            re.compile(r"\b(password|pass|pwd|secret|apikey|api_key|token)\b\s*[\"']?(=|:|=>|:=|->)\s*[\"']?([^\s\"']{4,})[\"']?", re.IGNORECASE),
             "Password/secret assignment (explicit separators)",
             "password: secret123",
         ))
         # Whitespace-separated or with common separators, with basic strength guards
         rules.append(Rule(
             "PasswordAssignmentLoose",
-            re.compile(r"(?ix)\b(password|pass|pwd|secret|api[-_]?key|token)\b(?:\s*(?:=|:|=>|:=|->)\s*|\s{1,3})[\"']?(?=[^\s\"']{6,})(?=[^\s\"']*(?:\d|[^A-Za-z]))([^\s\"']+)[\"']?"),
+            # Permit optional quote right after the keyword before a separator; or allow short whitespace distance
+            re.compile(r"(?ix)\b(password|pass|pwd|secret|api[-_]?key|token)\b(?:\s*(?:[\"']?\s*(?:=|:|=>|:=|->)\s*)|\s{1,3})[\"']?(?=[^\s\"']{6,})(?=[^\s\"']*(?:\d|[^A-Za-z]))([^\s\"']+)[\"']?"),
             "Password/secret assignment with whitespace or separators (guarded)",
             "password secret123",
         ))

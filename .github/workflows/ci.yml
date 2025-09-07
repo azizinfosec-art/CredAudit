@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    name: Unit + E2E (${{ matrix.os }} / py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install CredAudit (editable)
+        run: |
+          python -m pip install -e .
+
+      - name: Run tests
+        env:
+          CREDAUDIT_AUTHOR_NAME: 'CI'
+          CREDAUDIT_AUTHOR_URL: 'https://github.com/azizinfosec-art/CredAudit'
+        run: |
+          python -m unittest discover -s tests -p "test_*.py"
+

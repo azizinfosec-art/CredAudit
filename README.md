@@ -2,6 +2,12 @@
 
 Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HAR). Supports text, DOCX, PDF, XLSX, and HAR with multiple report formats.
 
+## What's New (v0.4.0)
+
+- CLI: `--only-rules` to restrict detection to specific rules. Accepts names or numeric indices (see `credaudit rules`). Examples: `--only-rules PasswordAssignment` or `--only-rules 1 3 5`.
+- HTML: new cyber‑hacker themed dashboard (dark neon, two‑pane layout, sticky header/footer, keyboard shortcuts). Exporter now prefers an external template at `credaudit/html_templates/report.html.j2` and falls back to the built‑in template if missing.
+- Branding hooks: set `CREDAUDIT_AUTHOR_NAME` and `CREDAUDIT_AUTHOR_URL` to personalize the report header.
+
 ## What's New (v0.3.16)
 
 - Added `.toml` to supported text extensions; TOML files are now scanned as plaintext.
