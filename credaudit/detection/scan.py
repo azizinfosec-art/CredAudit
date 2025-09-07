@@ -66,9 +66,13 @@ def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Op
                 out.append(Finding(path,r.name,s,redact_secret(s),ctx,sev,line))
     # Entropy-based detection is disabled at level 1 to reduce noise
     if (rule_level or 2) >= 2:
-        for t in re.findall(r"[A-Za-z0-9+/=_-]{20,}", joined):
-            if len(t)>=entropy_min_len and shannon_entropy(t)>=entropy_thresh:
-                pos=joined.find(t); line=joined.count('\n',0,pos)+1; ctx=lines[line-1][:200] if 0<line<=len(lines) else t[:200]
-                out.append(Finding(path,'HighEntropyString',t,redact_secret(t),ctx,'Low',line))
+        pat = re.compile(r"[A-Za-z0-9+/=_-]{20,}")
+        for m in pat.finditer(joined):
+            t = m.group(0)
+            if len(t) >= entropy_min_len and shannon_entropy(t) >= entropy_thresh:
+                pos = m.start()
+                line = joined.count('\n', 0, pos) + 1
+                ctx = lines[line-1][:200] if 0 < line <= len(lines) else t[:200]
+                out.append(Finding(path, 'HighEntropyString', t, redact_secret(t), ctx, 'Low', line))
     return out
 def serialize_findings(l: List[Finding])->List[Dict[str,Any]]: return [asdict(x) for x in l]
