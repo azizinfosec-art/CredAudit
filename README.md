@@ -1,7 +1,5 @@
 # CredAudit
 
-[![CI](https://github.com/azizinfosec-art/CredAudit/actions/workflows/ci.yml/badge.svg)](https://github.com/azizinfosec-art/CredAudit/actions/workflows/ci.yml)
-
 Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HAR). Supports text, DOCX, PDF, XLSX, and HAR with multiple report formats.
 
 ## What's New (v0.4.0)
