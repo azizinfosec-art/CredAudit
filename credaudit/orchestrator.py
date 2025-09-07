@@ -64,7 +64,7 @@ def collect_files(
     return selected
 
 
-def _scan_file_inner(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None, rule_level: int | None = None):
+def _scan_file_inner(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None, rule_level: int | None = None, only_rules=None):
     ext = os.path.splitext(p)[1].lower()
     if ext == '.har':
         try:
@@ -80,19 +80,19 @@ def _scan_file_inner(p, ent_min, ent_thr, har_include: str | None = 'both', har_
             allf = []
             for vid, txt in iter_har_texts(p, include_requests=include_requests, include_responses=include_responses,
                                            max_body_bytes=int(har_max_body_bytes)):
-                allf.extend(serialize_findings(scan_text(vid, txt, ent_min, ent_thr, rule_level)))
+                allf.extend(serialize_findings(scan_text(vid, txt, ent_min, ent_thr, rule_level, only_rules)))
             return p, allf, 'ok'
         except Exception:
             return p, [], 'unreadable'
     t = extract_text_from_file(p)
     if t is None:
         return p, [], 'unreadable'
-    return p, serialize_findings(scan_text(p, t, ent_min, ent_thr, rule_level)), 'ok'
+    return p, serialize_findings(scan_text(p, t, ent_min, ent_thr, rule_level, only_rules)), 'ok'
 
 
-def _scan_file_runner(q: Queue, p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level):
+def _scan_file_runner(q: Queue, p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level, only_rules):
     try:
-        res = _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level)
+        res = _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level, only_rules)
     except Exception:
         res = (p, [], 'error')
     try:
@@ -101,14 +101,14 @@ def _scan_file_runner(q: Queue, p, ent_min, ent_thr, har_include, har_max_body_b
         pass
 
 
-def _scan_file(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None, rule_level: int | None = None, per_file_timeout: float | None = None):
+def _scan_file(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None, rule_level: int | None = None, per_file_timeout: float | None = None, only_rules=None):
     # If no timeout configured, run inline in this process (original behavior)
     if not per_file_timeout or per_file_timeout <= 0:
-        return _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level)
+        return _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level, only_rules)
     # Run actual scan in a child process so we can terminate on timeout
     try:
         q: Queue = Queue(maxsize=1)
-        proc = Process(target=_scan_file_runner, args=(q, p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level))
+        proc = Process(target=_scan_file_runner, args=(q, p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level, only_rules))
         proc.daemon = True
         proc.start()
         proc.join(per_file_timeout)
@@ -153,6 +153,7 @@ def scan_paths(
     ndjson_buffer: int | None = None,
     ndjson_include_raw: bool | None = None,
     per_file_timeout: float | None = None,
+    only_rules = None,
 ):
     os.makedirs(output_dir, exist_ok=True)
     from .exporters.json_exporter import export_json
@@ -325,7 +326,7 @@ def scan_paths(
         if show_spinner:
             print(f"Scanning {done}/{total} | Findings: {len(findings_all)} ", end='', flush=True)
         with ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2) as pp:
-            futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes, rule_level, per_file_timeout): p for p in to_scan}
+            futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes, rule_level, per_file_timeout, only_rules): p for p in to_scan}
             for fut in as_completed(futs):
                 p = futs[fut]
                 try:

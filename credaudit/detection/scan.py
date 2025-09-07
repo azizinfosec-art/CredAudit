@@ -1,6 +1,6 @@
 import re, json, base64
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Iterable
 from .rules import build_rules
 from ..utils.entropy import shannon_entropy
 from ..utils.common import redact_secret
@@ -48,10 +48,13 @@ def _looks_like_jwt(token: str)->bool:
         return isinstance(h,dict) and isinstance(p,dict)
     except Exception:
         return False
-def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Optional[int] = None)->List[Finding]:
+def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Optional[int] = None, only_rules: Optional[Iterable[str]] = None)->List[Finding]:
     out=[]; lines=text.splitlines(); joined=text
     # Select rule set by sensitivity level (None implies default 2)
+    only_set = set([x.strip() for x in (only_rules or []) if str(x).strip()]) if only_rules else None
     for r in build_rules(rule_level):
+        if only_set is not None and r.name not in only_set:
+            continue
         for m in r.pattern.finditer(joined):
             s=m.group(0); start=m.start(); line=joined.count('\n',0,start)+1; ctx=lines[line-1][:200] if 0<line<=len(lines) else s[:200]
             low=s.lower()
@@ -65,7 +68,7 @@ def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Op
                     continue
                 out.append(Finding(path,r.name,s,redact_secret(s),ctx,sev,line))
     # Entropy-based detection is disabled at level 1 to reduce noise
-    if (rule_level or 2) >= 2:
+    if (rule_level or 2) >= 2 and (only_set is None or 'HighEntropyString' in only_set):
         pat = re.compile(r"[A-Za-z0-9+/=_-]{20,}")
         for m in pat.finditer(joined):
             t = m.group(0)

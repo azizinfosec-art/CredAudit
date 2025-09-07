@@ -1,4 +1,5 @@
 import sys, argparse, os, time
+from .detection.rules import build_rules
 from .config import Config, DEFAULT_CONFIG_PATH
 from .orchestrator import collect_files, scan_paths
 from .utils.common import load_ignore_file
@@ -70,6 +71,9 @@ Advanced Features:
   --scan-archives         Enable scanning inside ZIP/RAR archives (optional)
   --archive-depth N       How deep to unpack nested archives
   --no-cache              Force full rescan (ignore cache)
+Rule Selection:
+  --only-rules R1 [R2 ...]  Restrict scanning to specific rule names or indices (from `credaudit rules`).
+                            Accepts comma- or space-separated values, e.g., "PasswordAssignment,HighEntropyString" or "1 4 6".
 Sensitivity:
   --sensitivity {1,2,3}   Rule sensitivity: 1=cautious, 2=balanced (default), 3=aggressive
                            Aliases: L1/L2/L3 or low/medium/high
@@ -100,14 +104,17 @@ Examples:
       Force rescan of all files and export results in SARIF format
 """
 def print_rules():
-    print("- PrivateKey: PEM-encoded private key material (e.g., -----BEGIN PRIVATE KEY----- ...)")
-    print("- AWSAccessKeyID: AWS Access Key ID (e.g., AKIA...)")
-    print("- GitHubToken: GitHub-style token (e.g., ghp_...)")
-    print("- JWT: JSON Web Token (e.g., eyJ...)")
-    print("- PasswordAssignment: Password/secret assignment (explicit) (e.g., password: secret123)")
-    print("- PasswordAssignmentLoose: Password with whitespace or separators (guarded) (e.g., password secret123)")
-    print("- APIKeyGeneric: Generic API key (e.g., sk-abc123...)")
-    print("- SlackWebhook: Slack Incoming Webhook URL (e.g., https://hooks.slack.com/services/...)")
+    try:
+        rules = build_rules(3)
+    except Exception:
+        rules = []
+    if not rules:
+        print("No rules available.")
+        return
+    print("Active rules (index: name — description)")
+    for i, r in enumerate(rules, start=1):
+        desc = getattr(r, 'description', '') or ''
+        print(f"{i}) {r.name} — {desc}")
 def do_validate(cfg: Config):
     print("Configuration OK")
     print("Enabled parsers: .txt .json .env .docx .pdf .xlsx")
@@ -192,6 +199,7 @@ def main(argv=None)->int:
         ),
     )
     parse_common_args(scan_p)
+    scan_p.add_argument('--only-rules', nargs='+', help='Restrict scanning to specific rule names or indices (from `credaudit rules`). Comma- or space-separated')
     scan_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
     convert_p=sub.add_parser('convert', help='Convert NDJSON findings to reports')
     convert_p.add_argument('--in', dest='inp', required=True, help='Input NDJSON path')
@@ -279,7 +287,16 @@ def main(argv=None)->int:
                                     ndjson_flush_sec=getattr(args,'ndjson_flush_sec',None),
                                     ndjson_buffer=getattr(args,'ndjson_buffer',None),
                                     ndjson_include_raw=bool(getattr(args,'ndjson_include_raw',False)),
-                                    per_file_timeout=getattr(args,'per_file_timeout', None))
+                                    per_file_timeout=getattr(args,'per_file_timeout', None),
+                                    only_rules=(
+                                        (lambda tokens: (
+                                            (lambda names: list(dict.fromkeys([
+                                                (names[int(t)-1] if str(t).isdigit() and 1 <= int(t) <= len(names) else str(t))
+                                                for part in tokens for t in str(part).split(',') if str(t).strip()
+                                            ])))([r.name for r in build_rules(rule_level)])
+                                        )
+                                        )((getattr(args,'only_rules',[]) or [])) if hasattr(args,'only_rules') and getattr(args,'only_rules',None) else None
+                                    ))
         t_end = time.perf_counter()
         elapsed = t_end - t_start
         # Friendly end-of-run summary

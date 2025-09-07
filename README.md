@@ -2,6 +2,10 @@
 
 Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HAR). Supports text, DOCX, PDF, XLSX, and HAR with multiple report formats.
 
+## What's New (v0.3.16)
+
+- Added `.toml` to supported text extensions; TOML files are now scanned as plaintext.
+
 ## What's New (v0.3.15)
 
 - Per-file timeout to prevent runs stalling on corrupt/huge files: `--per-file-timeout SEC` (default 120; 0 disables). Timed-out files are skipped and reported with `--verbose`.
