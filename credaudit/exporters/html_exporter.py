@@ -25,6 +25,9 @@ TEMPLATE = """<!DOCTYPE html>
     }
     *{box-sizing:border-box}
     body{font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--fg);margin:24px}
+    .topbar{display:flex;justify-content:space-between;align-items:center;background:linear-gradient(90deg,#0ea5e9,#22c55e);color:#fff;padding:10px 14px;border-radius:10px;margin-bottom:14px}
+    .topbar .brand{font-weight:700;letter-spacing:.3px}
+    .topbar .author a{color:#fff;text-decoration:underline}
     header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
     h1{margin:0 0 4px 0;font-size:20px}
     .meta{color:var(--muted);font-size:12px}
@@ -60,6 +63,10 @@ TEMPLATE = """<!DOCTYPE html>
   </style>
 </head>
 <body>
+  <div class="topbar">
+    <div class="brand">CredAudit</div>
+    <div class="author">By <a href="{{ author_url }}" target="_blank" rel="noopener">{{ author_name }}</a> · v{{ version }}</div>
+  </div>
   <header>
     <h1>CredAudit Report</h1>
     <span class="meta">v{{ version }} &middot; {{ generated_at }} &middot; Findings: {{ total_count }} &middot; Files: {{ file_count }}</span>
@@ -365,8 +372,18 @@ def export_html(findings, p):
         fp = f.get("file")
         if fp:
             files.add(fp)
+    # Prefer external template if present (credaudit/html_templates/report.html.j2)
+    tpl_text = None
+    try:
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
+        tpl_path = os.path.join(base_dir, 'html_templates', 'report.html.j2')
+        if os.path.exists(tpl_path):
+            with open(tpl_path, 'r', encoding='utf-8') as f:
+                tpl_text = f.read()
+    except Exception:
+        tpl_text = None
     env = Environment(autoescape=True)
-    tmpl = env.from_string(TEMPLATE)
+    tmpl = env.from_string(tpl_text or TEMPLATE)
     # Limit rows for lighter HTML (override via env CREDAUDIT_HTML_MAX_ROWS)
     try:
         max_rows = int(os.environ.get('CREDAUDIT_HTML_MAX_ROWS', '500'))
@@ -380,6 +397,9 @@ def export_html(findings, p):
     csv_name = base_name + '.csv'
     json_name_js = Markup(json.dumps(json_name))
     base_name_js = Markup(json.dumps(base_name))
+    # Author metadata (can be customized via env)
+    author_name = os.environ.get('CREDAUDIT_AUTHOR_NAME', 'azizinfosec-art')
+    author_url = os.environ.get('CREDAUDIT_AUTHOR_URL', 'https://github.com/azizinfosec-art/CredAudit')
     html = tmpl.render(
         counts=counts,
         file_count=len(files),
@@ -394,6 +414,8 @@ def export_html(findings, p):
         json_name_js=json_name_js,
         base_name_js=base_name_js,
         display=display,
+        author_name=author_name,
+        author_url=author_url,
     )
     with open(p, 'w', encoding='utf-8') as h:
         h.write(html)
