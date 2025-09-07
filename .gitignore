@@ -1,0 +1,40 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build and packaging
+build/
+dist/
+downloads/
+*.egg-info/
+.eggs/
+sdist/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Test/coverage caches
+.pytest_cache/
+.tox/
+.nox/
+.cache/
+coverage.xml
+.coverage*
+htmlcov/
+
+# IDE/editor
+.vscode/
+.idea/
+
+# CredAudit outputs and caches
+credaudit_out/
+*.ndjson
+.credaudit_cache.json
+
+# OS junk
+.DS_Store
+Thumbs.db
