@@ -14,7 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        python-version: ['3.9', '3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
       - name: Checkout
@@ -41,4 +41,6 @@ jobs:
           CREDAUDIT_AUTHOR_NAME: 'CI'
           CREDAUDIT_AUTHOR_URL: 'https://github.com/azizinfosec-art/CredAudit'
         run: |
+          python -m credaudit --version
+          python -m credaudit rules
           python -m unittest discover -s tests -p "test_*.py"
