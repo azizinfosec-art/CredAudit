@@ -1,4 +1,5 @@
 import sys, argparse, os, time
+from pathlib import Path
 from .detection.rules import build_rules
 from .config import Config, DEFAULT_CONFIG_PATH
 from .orchestrator import collect_files, scan_paths
@@ -52,6 +53,49 @@ def print_console_findings(findings, limit=50):
     if len(safe) > len(shown):
         print(f"... showing {len(shown)} of {len(safe)} findings. Use --console-limit to show more.")
     print("Use --formats html csv json to save reports.")
+
+def _file_url(path):
+    try:
+        return Path(path).resolve().as_uri()
+    except Exception:
+        return os.path.abspath(path)
+
+def _generated_report_path(output_dir, fmt, timestamp, started_at=None):
+    out_dir = os.path.abspath(output_dir)
+    if not timestamp:
+        path = os.path.join(out_dir, f"report.{fmt}")
+        return path if os.path.exists(path) else None
+    try:
+        suffix = f".{fmt}"
+        candidates = [
+            os.path.join(out_dir, name)
+            for name in os.listdir(out_dir)
+            if name.startswith("report_") and name.endswith(suffix)
+        ]
+        if started_at is not None:
+            recent = [
+                p for p in candidates
+                if os.path.getmtime(p) >= max(0, float(started_at) - 1.0)
+            ]
+            if recent:
+                candidates = recent
+        if not candidates:
+            return None
+        return max(candidates, key=lambda p: os.path.getmtime(p))
+    except Exception:
+        return None
+
+def print_report_links(output_dir, formats, timestamp, started_at=None):
+    links = []
+    for fmt in formats:
+        path = _generated_report_path(output_dir, fmt, timestamp, started_at)
+        if path:
+            links.append((fmt.upper(), _file_url(path)))
+    if not links:
+        return
+    print("Report URLs:")
+    for label, url in links:
+        print(f"  {label}: {url}")
 
 FAST_EXCLUDE_GLOBS = [
     "**/.git/**",
@@ -434,6 +478,8 @@ def main(argv=None)->int:
         else:
             report_txt = f"{args.output_dir} (formats: {fmts})"
         print(f"Scanned {len(files)} files | Findings: {len(findings)} (H:{cH} M:{cM} L:{cL}) | Sensitivity: {sens_txt} | Mode: {mode_txt} | Time: {elapsed:.2f}s | Reports: {report_txt}")
+        if not console_mode:
+            print_report_links(args.output_dir, formats, args.timestamp, t_start)
         return code
     else:
         parser.print_help(); return 0

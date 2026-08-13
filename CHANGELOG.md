@@ -14,6 +14,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - CLI: `--raw` to opt into raw findings for internal remediation workflows.
 - CLI: console findings table when `--formats` is not provided.
 - CLI: `--console-limit` to control how many findings are shown on screen.
+- CLI: clickable `file:///...` report URLs when `--formats` creates report files.
 - CLI: `--max-size-kb` for small-file scan limits.
 - CLI: `credaudit scan PATH` now uses the same fast safe defaults as `credaudit PATH`.
 - Rules: low-severity `UsernameAssignment`, `PasswordKeyword`, and `PasswordCandidate` indicators.

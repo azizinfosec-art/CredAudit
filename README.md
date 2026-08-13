@@ -138,6 +138,8 @@ Reports are written to `./credaudit_out` when `--formats` is used:
 - `report.csv` - redacted tabular report.
 - `report.sarif` - SARIF 2.1.0 when requested.
 
+When report files are created, CredAudit prints clickable `file:///...` URLs in the terminal for each generated format.
+
 Use `--timestamp` when you want report files such as `report_YYYYMMDD_HHMMSS.html` instead of overwriting `report.html`.
 
 Advanced users can still run the full configured scan scope:

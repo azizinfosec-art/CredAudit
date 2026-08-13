@@ -288,6 +288,23 @@ class TestCliScan(unittest.TestCase):
             self.assertNotIn("Abcd1234", res.stdout)
             self.assertFalse((out / "report.json").exists(), "console mode should not write report.json")
 
+    def test_formats_print_clickable_file_urls(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "secrets.txt", "password: Abcd1234\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--formats", "html", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            html = (out / "report.html").resolve().as_uri()
+            json_report = (out / "report.json").resolve().as_uri()
+            self.assertIn("Report URLs:", res.stdout)
+            self.assertIn(f"HTML: {html}", res.stdout)
+            self.assertIn(f"JSON: {json_report}", res.stdout)
+
     def test_html_generated_with_template(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
