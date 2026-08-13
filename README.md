@@ -133,14 +133,14 @@ credaudit ./project --formats html csv json
 
 Reports are written to `./credaudit_out` when `--formats` is used:
 
-- `report.html` - interactive browser report.
-- `report.json` - finding data. In safe mode, matches and context are redacted.
-- `report.csv` - redacted tabular report.
-- `report.sarif` - SARIF 2.1.0 when requested.
+- `report_YYYYMMDD_HHMMSS.html` - interactive browser report.
+- `report_YYYYMMDD_HHMMSS.json` - finding data. In safe mode, matches and context are redacted.
+- `report_YYYYMMDD_HHMMSS.csv` - redacted tabular report.
+- `report_YYYYMMDD_HHMMSS.sarif` - SARIF 2.1.0 when requested.
 
 When report files are created, CredAudit prints clickable `file:///...` URLs in the terminal for each generated format.
 
-Use `--timestamp` when you want report files such as `report_YYYYMMDD_HHMMSS.html` instead of overwriting `report.html`.
+Timestamped report filenames are the default when `--formats` is used. Add `--no-timestamp` when you intentionally want fixed filenames such as `report.html`.
 
 Advanced users can still run the full configured scan scope:
 
@@ -177,34 +177,16 @@ credaudit scan -p ./project --full --raw --formats html json csv
 4. Run the audit and review the redacted CLI results:
 
    ```sh
-   credaudit ./client-data --timestamp
+   credaudit ./client-data
    ```
 
 5. Export an HTML report when needed:
 
    ```sh
-   credaudit ./client-data --formats html csv json --timestamp
+   credaudit ./client-data --formats html csv json
    ```
 
-6. Open the HTML report:
-
-   Windows PowerShell:
-
-   ```powershell
-   start credaudit_out\report.html
-   ```
-
-   Windows Command Prompt:
-
-   ```bat
-   start credaudit_out\report.html
-   ```
-
-   Kali Linux, Linux, or macOS:
-
-   ```sh
-   xdg-open credaudit_out/report.html 2>/dev/null || open credaudit_out/report.html
-   ```
+6. Open the HTML report using the `HTML: file:///...` URL printed under `Report URLs`.
 
 7. Triage high and medium severity findings first, then use the file path and line number in each report row to remediate the source files.
 
@@ -392,7 +374,8 @@ Important scan flags:
 - `--threads N` - threads used for file discovery.
 - `--workers N` - worker processes used for scanning.
 - `--list` - dry run. Print files that would be scanned.
-- `--timestamp` - append a timestamp to report filenames.
+- `--timestamp` - append a timestamp to report filenames. This is the default when `--formats` is used.
+- `--no-timestamp` - use fixed report filenames such as `report.html` and `report.json`.
 - `--fail-on Low|Medium|High` - exit with code `2` if findings meet or exceed the threshold.
 - `--config PATH` - config file path. Default: `config.yaml`.
 - `--entropy-min-length INT` - minimum token length for entropy detection.

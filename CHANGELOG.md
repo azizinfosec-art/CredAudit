@@ -15,6 +15,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - CLI: console findings table when `--formats` is not provided.
 - CLI: `--console-limit` to control how many findings are shown on screen.
 - CLI: clickable `file:///...` report URLs when `--formats` creates report files.
+- CLI: timestamped report filenames are now the default when `--formats` is used.
+- CLI: `--no-timestamp` to write fixed report filenames such as `report.html`.
 - CLI: `--max-size-kb` for small-file scan limits.
 - CLI: `credaudit scan PATH` now uses the same fast safe defaults as `credaudit PATH`.
 - Rules: low-severity `UsernameAssignment`, `PasswordKeyword`, and `PasswordCandidate` indicators.

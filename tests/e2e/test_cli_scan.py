@@ -31,11 +31,12 @@ class TestCliScan(unittest.TestCase):
             write_file(tmp / "secrets.txt", "password: Abcd1234\n")
             out_dir = tmp / "out"
             nd = out_dir / "findings.ndjson"
-            # No --timestamp to make report file deterministic (report.json)
+            # --no-timestamp keeps report file deterministic (report.json)
             res = run_cli([
                 "scan", "-p", str(tmp), "-o", str(out_dir), "--no-cache",
                 "--ndjson-out", str(nd),
-                "--formats", "json"
+                "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             self.assertTrue(nd.exists() and nd.stat().st_size > 0)
@@ -58,6 +59,7 @@ class TestCliScan(unittest.TestCase):
             res = run_cli([
                 "scan", "-p", str(tmp), "-o", str(out), "--no-cache",
                 "--formats", "json",
+                "--no-timestamp",
                 "--only-rules", "PasswordAssignment"
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
@@ -77,6 +79,7 @@ class TestCliScan(unittest.TestCase):
                 "-o", str(out),
                 "--cache-file", str(cache),
                 "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             report = out / "report.json"
@@ -97,6 +100,7 @@ class TestCliScan(unittest.TestCase):
                 str(tmp),
                 "-o", str(out),
                 "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")
@@ -119,6 +123,7 @@ class TestCliScan(unittest.TestCase):
                 "-o", str(out),
                 "--cache-file", str(cache),
                 "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             text = (out / "report.json").read_text(encoding="utf-8")
@@ -143,6 +148,7 @@ class TestCliScan(unittest.TestCase):
                 "-o", str(out),
                 "--cache-file", str(cache),
                 "--formats", "json",
+                "--no-timestamp",
                 "--full",
                 "--raw",
             ])
@@ -165,6 +171,7 @@ class TestCliScan(unittest.TestCase):
                 "-o", str(out),
                 "--include-glob", "**/*.yaml",
                 "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")
@@ -181,6 +188,7 @@ class TestCliScan(unittest.TestCase):
                 "-o", str(out),
                 "--raw",
                 "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")
@@ -201,6 +209,7 @@ class TestCliScan(unittest.TestCase):
                 str(tmp),
                 "-o", str(out),
                 "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")
@@ -223,6 +232,7 @@ class TestCliScan(unittest.TestCase):
                 "-o", str(out),
                 "--raw",
                 "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")
@@ -251,6 +261,7 @@ class TestCliScan(unittest.TestCase):
                 "-o", str(out),
                 "--raw",
                 "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")
@@ -299,8 +310,12 @@ class TestCliScan(unittest.TestCase):
                 "--formats", "html", "json",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
-            html = (out / "report.html").resolve().as_uri()
-            json_report = (out / "report.json").resolve().as_uri()
+            html_reports = list(out.glob("report_*.html"))
+            json_reports = list(out.glob("report_*.json"))
+            self.assertEqual(len(html_reports), 1)
+            self.assertEqual(len(json_reports), 1)
+            html = html_reports[0].resolve().as_uri()
+            json_report = json_reports[0].resolve().as_uri()
             self.assertIn("Report URLs:", res.stdout)
             self.assertIn(f"HTML: {html}", res.stdout)
             self.assertIn(f"JSON: {json_report}", res.stdout)
@@ -352,7 +367,8 @@ class TestCliScan(unittest.TestCase):
                 "scan", "-p", str(har), "-o", str(out), "--no-cache",
                 "--include-ext", ".har",
                 "--har-include", "responses",
-                "--formats", "json"
+                "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")
@@ -373,7 +389,8 @@ class TestCliScan(unittest.TestCase):
                 "scan", "-p", str(zpath), "-o", str(out), "--no-cache",
                 "--scan-archives", "--archive-depth", "1",
                 "--include-ext", ".zip",
-                "--formats", "json"
+                "--formats", "json",
+                "--no-timestamp",
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")

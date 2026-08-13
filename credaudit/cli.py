@@ -162,7 +162,8 @@ Scan Options:
   --safe                 Redacted reports and no raw-secret cache writes (default)
   --raw                  Allow raw findings in reports/cache for internal remediation
   --list                 Dry-run: only list files to be scanned
-  --timestamp            Append timestamp to report filenames
+  --timestamp            Append timestamp to report filenames (default with --formats)
+  --no-timestamp         Use fixed report filenames such as report.html
   --fail-on LEVEL        Exit non-zero if findings ≥ LEVEL
                          (choices: Low, Medium, High)
 File Filtering:
@@ -207,7 +208,7 @@ Examples:
       Validate config.yaml and show active parsers
   credaudit rules
       List all built-in detection rules
-  credaudit scan -p ./secrets --formats html json --timestamp
+  credaudit scan -p ./secrets --formats html json
       Scan a folder and save timestamped HTML+JSON reports
   credaudit scan -p ./app/config.env --include-ext .env --fail-on High
       Scan a single .env file and exit non-zero if High severity secrets found
@@ -257,7 +258,10 @@ def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('--list', action='store_true', help='Dry-run: only list files')
     p.add_argument('--console-limit', type=int, default=50,
                    help='Max findings shown on screen when --formats is not used')
-    p.add_argument('--timestamp', action='store_true', help='Append timestamp to report filename')
+    p.add_argument('--timestamp', dest='timestamp', action='store_true', default=None,
+                   help='Append timestamp to report filenames (default when --formats is used)')
+    p.add_argument('--no-timestamp', dest='timestamp', action='store_false',
+                   help='Use fixed report filenames such as report.html')
     p.add_argument('--fail-on', choices=['Low','Medium','High'], help='Exit non-zero if any finding >= threshold')
     p.add_argument('--config', default=DEFAULT_CONFIG_PATH, help='Path to config.yaml')
     p.add_argument('--entropy-min-length', type=int, dest='entropy_min_length', help='Entropy min token length')
@@ -394,6 +398,7 @@ def main(argv=None)->int:
         target_path = args.path or args.target or '.'
         console_mode = args.formats is None
         formats = args.formats or []
+        timestamp_reports = bool(formats) if args.timestamp is None else bool(args.timestamp)
         if args.fast and not args.include_ext and not args.include_glob:
             include_exts = ['.txt']
         elif args.include_glob and not args.include_ext:
@@ -436,7 +441,7 @@ def main(argv=None)->int:
         }
         rule_level = sens_map.get(getattr(args, 'sensitivity', None))
         try:
-            findings, code = scan_paths(files, args.output_dir, formats, args.timestamp,
+            findings, code = scan_paths(files, args.output_dir, formats, timestamp_reports,
                                         cfg.cache_file, cfg.entropy_min_length, cfg.entropy_threshold,
                                         scan_workers, args.fail_on, args.scan_archives, args.archive_depth,
                                         args.verbose, args.no_cache,
@@ -479,7 +484,7 @@ def main(argv=None)->int:
             report_txt = f"{args.output_dir} (formats: {fmts})"
         print(f"Scanned {len(files)} files | Findings: {len(findings)} (H:{cH} M:{cM} L:{cL}) | Sensitivity: {sens_txt} | Mode: {mode_txt} | Time: {elapsed:.2f}s | Reports: {report_txt}")
         if not console_mode:
-            print_report_links(args.output_dir, formats, args.timestamp, t_start)
+            print_report_links(args.output_dir, formats, timestamp_reports, t_start)
         return code
     else:
         parser.print_help(); return 0
