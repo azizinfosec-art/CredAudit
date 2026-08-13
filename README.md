@@ -362,6 +362,18 @@ credaudit ./project --only-rules 1 3 5
 
 Use these starting points when choosing a scan command by folder size.
 
+These examples assume the `credaudit` command is installed and available on `PATH`. If your terminal says `credaudit` is not recognized, install the project first:
+
+```sh
+python -m pip install -e .
+```
+
+Or run the same examples as a Python module:
+
+```sh
+python -m credaudit ./client-data
+```
+
 ### Light Folder
 
 For a small folder or a first quick check, use the default safe scan:
@@ -380,19 +392,27 @@ credaudit ./client-data --formats html csv json
 
 ### Medium Folder
 
-For a normal project folder where credentials may appear in common config and document files, widen the scope and save reports:
+For a normal project folder, scan common plaintext-style config and log files first:
 
 ```sh
-credaudit ./client-data --include-ext .txt .json .env .yaml .yml .docx .pdf .xlsx .har --max-size 25 --per-file-timeout 20 --workers 4 --formats html csv json
+credaudit ./client-data --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --per-file-timeout 10 --workers 4 --formats html csv json
 ```
 
-This keeps safe redaction enabled, scans common audit file types, skips files larger than 25 MB, gives each file up to 20 seconds, and writes review-friendly reports.
+This keeps safe redaction enabled, scans common audit file types, skips files larger than 10 MB, gives each file up to 10 seconds, and writes review-friendly reports.
 
 Preview the files first if you want to confirm the scope:
 
 ```sh
-credaudit ./client-data --include-ext .txt .json .env .yaml .yml .docx .pdf .xlsx .har --max-size 25 --list
+credaudit ./client-data --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --list
 ```
+
+Scan document and workbook files separately when needed:
+
+```sh
+credaudit ./client-data --include-ext .docx .pdf .xlsx .har --max-size 5 --per-file-timeout 30 --workers 2 --formats html csv json --verbose
+```
+
+Excel workbooks can be slow to open when they are large, locked, corrupt, or stored on a cloud/network path. If a workbook stalls, remove `.xlsx` from the folder scan and scan that workbook by itself.
 
 ### Huge Folder
 

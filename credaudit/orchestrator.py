@@ -97,8 +97,11 @@ def _scan_file_inner(p, ent_min, ent_thr, har_include: str | None = 'both', har_
 
 
 def _scan_file_runner(q: Queue, p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level, only_rules):
+    _ignore_worker_keyboard_interrupt()
     try:
         res = _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level, only_rules)
+    except KeyboardInterrupt:
+        res = (p, [], 'interrupted')
     except Exception:
         res = (p, [], 'error')
     try:
@@ -379,7 +382,7 @@ def scan_paths(
                                             pass
                                 if cache_enabled and cache:
                                     cache.update(p, f)
-                            elif st in ('timeout', 'error'):
+                            elif st in ('timeout', 'error', 'interrupted'):
                                 if verbose:
                                     print(f"[SKIP] {p}: {st}")
                         except Exception as e:

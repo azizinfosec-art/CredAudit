@@ -326,7 +326,8 @@ def main(argv=None)->int:
         epilog=(
             'Folder size examples:\n'
             '  Light:  credaudit ./client-data\n'
-            '  Medium: credaudit ./client-data --include-ext .txt .json .env .yaml .yml .docx .pdf .xlsx .har --max-size 25 --per-file-timeout 20 --workers 4 --formats html csv json\n'
+            '  Medium: credaudit ./client-data --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --per-file-timeout 10 --workers 4 --formats html csv json\n'
+            '  Docs:   credaudit ./client-data --include-ext .docx .pdf .xlsx .har --max-size 5 --per-file-timeout 30 --workers 2 --formats html csv json --verbose\n'
             '  Huge:   credaudit ./large-share --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --sensitivity 1 --threads 32 --workers 8 --per-file-timeout 10 --ndjson-out credaudit_out/large_findings.ndjson --ndjson-truncate --no-banner\n'
             '\n'
             'Environment:\n'
