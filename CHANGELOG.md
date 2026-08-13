@@ -38,6 +38,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 - Explicit file targets such as `.xlsx` workbooks are scanned directly in default fast mode instead of being silently filtered by directory-scan defaults.
 - XLSX extraction now detects password values under mixed table headers such as `system` / `user` / `password`, instead of treating the header row as the secret.
 - Noisy `openpyxl` data-validation compatibility warnings are suppressed during XLSX scanning so progress output stays readable.
+- Scan progress now refreshes while workers are busy on slow files, so long XLSX/PDF/HAR reads no longer look frozen between completed files.
 
 ### Security
 - Safe mode skips cache reads and writes to avoid storing raw findings locally.

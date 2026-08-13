@@ -1,5 +1,5 @@
 import os, tempfile, zipfile, tarfile, sys
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, wait, FIRST_COMPLETED
 from multiprocessing import Process, Queue
 from typing import List, Dict, Tuple
 from .utils.common import iter_files, match_globs, normalize_exts, load_ignore_file, redact_finding_records
@@ -332,46 +332,62 @@ def scan_paths(
 
     if to_scan:
         total = len(to_scan)
-        if show_spinner:
-            print(f"Scanning {done}/{total} | Findings: {len(findings_all)} ", end='', flush=True)
-        pp = ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2, initializer=_ignore_worker_keyboard_interrupt)
+        max_workers = workers or os.cpu_count() or 2
+        progress_len = 0
+
+        def emit_progress():
+            nonlocal spin_idx, progress_len
+            if not show_spinner:
+                return
+            spin = spinner[spin_idx % len(spinner)]
+            spin_idx += 1
+            busy = min(max_workers, max(0, total - done))
+            msg = f"\r{spin} Scanning {done}/{total} | Busy: {busy} | Findings: {len(findings_all)} "
+            pad = " " * max(0, progress_len - len(msg))
+            sys.stdout.write(msg + pad)
+            sys.stdout.flush()
+            progress_len = len(msg)
+
+        emit_progress()
+        pp = ProcessPoolExecutor(max_workers=max_workers, initializer=_ignore_worker_keyboard_interrupt)
         shutdown_done = False
         try:
             futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes, rule_level, per_file_timeout, only_rules): p for p in to_scan}
             try:
-                for fut in as_completed(futs):
-                    p = futs[fut]
-                    try:
-                        _, f, st = fut.result()
-                        if st == 'ok':
-                            if f:
-                                if path_alias:
-                                    for rec in f:
-                                        fp = rec.get('file')
-                                        if fp in path_alias:
-                                            rec['file'] = path_alias[fp]
-                                findings_all.extend(f)
-                                if nd_writer is not None:
-                                    try:
-                                        nd_writer.add_findings(f)
-                                    except Exception:
-                                        pass
-                            if cache_enabled and cache:
-                                cache.update(p, f)
-                        elif st in ('timeout', 'error'):
+                pending = set(futs)
+                while pending:
+                    completed, pending = wait(pending, timeout=1.0, return_when=FIRST_COMPLETED)
+                    if not completed:
+                        emit_progress()
+                        continue
+                    for fut in completed:
+                        p = futs[fut]
+                        try:
+                            _, f, st = fut.result()
+                            if st == 'ok':
+                                if f:
+                                    if path_alias:
+                                        for rec in f:
+                                            fp = rec.get('file')
+                                            if fp in path_alias:
+                                                rec['file'] = path_alias[fp]
+                                    findings_all.extend(f)
+                                    if nd_writer is not None:
+                                        try:
+                                            nd_writer.add_findings(f)
+                                        except Exception:
+                                            pass
+                                if cache_enabled and cache:
+                                    cache.update(p, f)
+                            elif st in ('timeout', 'error'):
+                                if verbose:
+                                    print(f"[SKIP] {p}: {st}")
+                        except Exception as e:
                             if verbose:
-                                print(f"[SKIP] {p}: {st}")
-                    except Exception as e:
-                        if verbose:
-                            print(f"[SKIP] {p}: exception {e}")
-                    finally:
-                        done += 1
-                        if show_spinner:
-                            spin = spinner[spin_idx % len(spinner)]; spin_idx += 1
-                            msg = f"\r{spin} Scanning {done}/{total} | Findings: {len(findings_all)} "
-                            # Pad/truncate to avoid leftover chars
-                            sys.stdout.write(msg)
-                            sys.stdout.flush()
+                                print(f"[SKIP] {p}: exception {e}")
+                        finally:
+                            done += 1
+                            emit_progress()
             except KeyboardInterrupt:
                 for fut in futs:
                     fut.cancel()
