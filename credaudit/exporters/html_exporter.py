@@ -4,6 +4,7 @@ from datetime import datetime
 from jinja2 import Environment
 from markupsafe import Markup
 from .. import __version__ as _VERSION
+from ..utils.common import redact_finding_record
 
 
 TEMPLATE = """<!DOCTYPE html>
@@ -345,7 +346,7 @@ TEMPLATE = """<!DOCTYPE html>
 """
 
 
-def export_html(findings, p):
+def export_html(findings, p, redacted_only=False):
     counts = {"High": 0, "Medium": 0, "Low": 0}
     files = set()
     # Normalize incoming findings to expected schema/casing
@@ -366,6 +367,8 @@ def export_html(findings, p):
         f.setdefault("match", f.get("value", ""))
         f.setdefault("line", f.get("line", ""))
         f.setdefault("context", f.get("context", ""))
+        if redacted_only:
+            f = redact_finding_record(f)
         normalized.append(f)
         if sev in counts:
             counts[sev] += 1
@@ -397,6 +400,7 @@ def export_html(findings, p):
     csv_name = base_name + '.csv'
     json_name_js = Markup(json.dumps(json_name))
     base_name_js = Markup(json.dumps(base_name))
+    safe_report_js = Markup(json.dumps(bool(redacted_only)))
     # Author metadata (can be customized via env)
     author_name = os.environ.get('CREDAUDIT_AUTHOR_NAME', 'azizinfosec-art')
     author_url = os.environ.get('CREDAUDIT_AUTHOR_URL', 'https://github.com/azizinfosec-art/CredAudit')
@@ -413,6 +417,8 @@ def export_html(findings, p):
         json_name=json_name,
         json_name_js=json_name_js,
         base_name_js=base_name_js,
+        safe_report=bool(redacted_only),
+        safe_report_js=safe_report_js,
         display=display,
         author_name=author_name,
         author_url=author_url,

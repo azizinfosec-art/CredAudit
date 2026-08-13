@@ -94,6 +94,7 @@
 
     /* Sticky footer actions */
     .footerbar{ position:sticky; bottom:0; margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; padding:10px; background:rgba(10,14,22,.9); border:1px solid var(--border); border-radius:12px; box-shadow: var(--shadow) }
+    .safe-report .copyRaw{ display:none }
 
     /* Print */
     @media print{
@@ -103,7 +104,7 @@
     }
   </style>
 </head>
-<body>
+<body{% if safe_report %} class="safe-report"{% endif %}>
   <div class="app">
     <div class="topbar" style="grid-column: 1 / -1">
       <div class="brand">
@@ -143,7 +144,9 @@
         <input id="q" type="text" placeholder="Search rule / file / value (fuzzy)" />
         <div class="actions">
           <button class="btn" id="toggleTheme">Theme</button>
+          {% if not safe_report %}
           <button class="btn" id="toggleRaw">Show Raw</button>
+          {% endif %}
           <button class="btn" id="clear">Clear</button>
           <a class="btn" href="{{ json_name }}" download>Download JSON</a>
           <a class="btn" href="{{ csv_name }}" download>Download CSV</a>
@@ -180,6 +183,7 @@
   const DATA = {{ data_json|safe }};
   const BASE_NAME = {{ base_name_js }};
   const CSV_NAME = {{ json_name_js }};
+  const SAFE_REPORT = {{ safe_report_js }};
   (function(){
     const tbl=document.getElementById('tbl'); const q=document.getElementById('q'); const pager=document.getElementById('pager');
     const btnTheme=document.getElementById('toggleTheme'); const btnRaw=document.getElementById('toggleRaw'); const btnClear=document.getElementById('clear');
@@ -192,6 +196,7 @@
     const selPageSize = (function(){ const s=document.createElement('select'); s.id='pageSize'; s.style.display='none'; s.innerHTML='<option value="500">500</option>'; document.body.appendChild(s); return s; })();
 
     let showRaw=false; let filtered=[...DATA]; let page=1; let PAGE_SIZE=500; let sortKey=null; let sortDir='asc';
+    const rawButtonHtml = SAFE_REPORT ? '' : '<button class="btn small copyRaw">Raw</button>';
     const sevRank={High:3, Medium:2, Low:1};
     const qsa=(s,el=document)=>Array.from(el.querySelectorAll(s));
 
@@ -279,7 +284,7 @@
             `<td class="wrap">`+
               `<div style="display:flex;align-items:center;gap:8px">`+
                 `<code class="val" data-raw="${(f.match||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" data-redacted="${(f.redacted||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">${(f.redacted||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</code>`+
-                `<span class="rowActions"><button class="btn small copyR">Copy</button><button class="btn small copyRaw">Raw</button></span>`+
+                `<span class="rowActions"><button class="btn small copyR">Copy</button>${rawButtonHtml}</span>`+
               `</div>`+
               `<div class="snippet">${highlight(f.context||'', f.match||'')}</div>`+
             `</td>`+
@@ -294,7 +299,7 @@
         tr.addEventListener('click', (e)=>{ if(e.target.closest('.rowActions')) return; const sn=tr.querySelector('.snippet'); sn.style.display = sn.style.display==='block' ? 'none' : 'block'; });
         const copyR=tr.querySelector('.copyR'); const copyRaw=tr.querySelector('.copyRaw'); const code=tr.querySelector('code.val');
         copyR.addEventListener('click', (e)=>{ e.stopPropagation(); copyToClipboard(code.dataset.redacted||''); });
-        copyRaw.addEventListener('click', (e)=>{ e.stopPropagation(); if(confirm('Copy raw secret?')) copyToClipboard(code.dataset.raw||''); });
+        if(copyRaw){ copyRaw.addEventListener('click', (e)=>{ e.stopPropagation(); if(confirm('Copy raw secret?')) copyToClipboard(code.dataset.raw||''); }); }
       });
       renderPager(Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
     }
@@ -321,7 +326,7 @@
     function applyTheme(t){ if(t==='dark') document.body.classList.add('dark'); else document.body.classList.remove('dark'); }
     const saved=localStorage.getItem('credtheme'); if(saved){ applyTheme(saved); }
     btnTheme.addEventListener('click', ()=>{ const d=document.body.classList.toggle('dark'); localStorage.setItem('credtheme', d?'dark':'light'); });
-    btnRaw.addEventListener('click', ()=>{ showRaw=!showRaw; btnRaw.textContent = showRaw ? 'Hide Raw' : 'Show Raw'; qsa('code.val').forEach(el=>{ el.textContent = showRaw ? el.dataset.raw : el.dataset.redacted; }); });
+    if(btnRaw){ btnRaw.addEventListener('click', ()=>{ showRaw=!showRaw; btnRaw.textContent = showRaw ? 'Hide Raw' : 'Show Raw'; qsa('code.val').forEach(el=>{ el.textContent = showRaw ? el.dataset.raw : el.dataset.redacted; }); }); }
     btnClear.addEventListener('click', ()=>{ q.value=''; incGlob.value=''; excGlob.value=''; extState.forEach((_,k)=>extState.set(k,true)); ruleState.forEach((_,k)=>ruleState.set(k,true)); qsa('.group .toggle').forEach(el=>el.classList.add('active')); cbH.checked=cbM.checked=cbL.checked=true; applyFilters(); });
     q.addEventListener('input', applyFiltersDebounced);
     incGlob.addEventListener('input', applyFiltersDebounced); excGlob.addEventListener('input', applyFiltersDebounced);
@@ -332,7 +337,7 @@
       const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
       const header=['severity','file','rule','value','line','context']; const lines=[header.map(esc).join(',')];
       const start = all? 0 : (page-1)*PAGE_SIZE; const end = all? filtered.length : Math.min(filtered.length,start+PAGE_SIZE);
-      for(let i=start;i<end;i++){ const f=filtered[i]; const row=[ f.severity||'', f.file||'', f.rule||'', (showRaw?(f.match||''):(f.redacted||'')), f.line||'', f.context||'' ]; lines.push(row.map(esc).join(',')); }
+      for(let i=start;i<end;i++){ const f=filtered[i]; const row=[ f.severity||'', f.file||'', f.rule||'', ((showRaw && !SAFE_REPORT)?(f.match||''):(f.redacted||'')), f.line||'', f.context||'' ]; lines.push(row.map(esc).join(',')); }
       copyToClipboard(lines.join('\r\n'));
       toast(all? 'CSV (filtered) copied' : 'CSV (page) copied');
     }
@@ -353,4 +358,3 @@
   <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 </body>
 </html>
-

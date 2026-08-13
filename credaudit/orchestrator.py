@@ -2,7 +2,7 @@ import os, tempfile, zipfile, tarfile, sys
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 from multiprocessing import Process, Queue
 from typing import List, Dict, Tuple
-from .utils.common import iter_files, match_globs, normalize_exts, load_ignore_file
+from .utils.common import iter_files, match_globs, normalize_exts, load_ignore_file, redact_finding_records
 from .parsers.extract import extract_text_from_file, TEXT_EXTS
 from .detection.scan import scan_text, serialize_findings
 from .cache import ScanCache
@@ -154,21 +154,24 @@ def scan_paths(
     ndjson_include_raw: bool | None = None,
     per_file_timeout: float | None = None,
     only_rules = None,
+    safe_report: bool = False,
 ):
-    os.makedirs(output_dir, exist_ok=True)
+    if formats:
+        os.makedirs(output_dir, exist_ok=True)
     from .exporters.json_exporter import export_json
     from .exporters.csv_exporter import export_csv
     from .exporters.html_exporter import export_html
     from .exporters.sarif_exporter import export_sarif
 
     findings_all = []
-    cache = ScanCache(cache_file)
+    cache_enabled = not no_cache and not safe_report
+    cache = ScanCache(cache_file) if cache_enabled else None
     to_scan = []
-    if no_cache:
+    if not cache_enabled:
         to_scan = list(paths)
     else:
         for p in paths:
-            if cache.is_unchanged(p):
+            if cache and cache.is_unchanged(p):
                 cached = cache.get_findings(p)
                 if cached:
                     findings_all.extend(cached)
@@ -316,7 +319,7 @@ def scan_paths(
                 truncate=bool(ndjson_truncate or False),
                 flush_sec=float(ndjson_flush_sec or 1.0),
                 buffer_size=int(ndjson_buffer or 100),
-                include_raw=bool(ndjson_include_raw or False),
+                include_raw=bool(ndjson_include_raw or False) and not safe_report,
             )
         except Exception:
             nd_writer = None
@@ -344,7 +347,7 @@ def scan_paths(
                                     nd_writer.add_findings(f)
                                 except Exception:
                                     pass
-                        if not no_cache:
+                        if cache_enabled and cache:
                             cache.update(p, f)
                     elif st in ('timeout', 'error'):
                         if verbose:
@@ -377,20 +380,21 @@ def scan_paths(
             nd_writer.close()
         except Exception:
             pass
-    if not no_cache:
+    if cache_enabled and cache:
         cache.save()
     import datetime as _dt
 
     stamp = '_' + _dt.datetime.now().strftime('%Y%m%d_%H%M%S') if timestamp else ''
     base = os.path.join(output_dir, f'report{stamp}')
+    export_findings = redact_finding_records(findings_all) if safe_report else findings_all
     if 'json' in formats:
-        export_json(findings_all, base + '.json')
+        export_json(export_findings, base + '.json')
     if 'csv' in formats:
-        export_csv(findings_all, base + '.csv')
+        export_csv(export_findings, base + '.csv')
     if 'html' in formats:
-        export_html(findings_all, base + '.html')
+        export_html(export_findings, base + '.html', redacted_only=safe_report)
     if 'sarif' in formats:
-        export_sarif(findings_all, base + '.sarif')
+        export_sarif(export_findings, base + '.sarif')
     code = 0
     sev_order = {"Low": 1, "Medium": 2, "High": 3}
     if fail_on:

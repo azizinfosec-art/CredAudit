@@ -65,6 +65,63 @@ class TestCliScan(unittest.TestCase):
             self.assertTrue(arr, "no findings produced")
             self.assertTrue(all(f.get("rule") == "PasswordAssignment" for f in arr))
 
+    def test_safe_shortcut_redacts_json_and_skips_cache(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "secrets.txt", "password: Abcd1234\n")
+            out = tmp / "out"
+            cache = tmp / "cache.json"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--cache-file", str(cache),
+                "--formats", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            report = out / "report.json"
+            self.assertTrue(report.exists(), "safe shortcut did not create report.json")
+            text = report.read_text(encoding="utf-8")
+            self.assertNotIn("Abcd1234", text)
+            self.assertIn("**********", text)
+            self.assertFalse(cache.exists(), "safe mode should not write a raw findings cache")
+
+    def test_safe_shortcut_fast_defaults_to_small_txt_only(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            small_txt = write_file(tmp / "small.txt", "password: Abcd1234\n")
+            write_file(tmp / "secret.json", "{\"password\":\"Json1234\"}\n")
+            write_file(tmp / "large.txt", ("A" * 11000) + "\npassword: Large1234\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--formats", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            self.assertTrue(arr, "small .txt file should be scanned")
+            files = {Path(f.get("file", "")).name for f in arr}
+            self.assertIn(small_txt.name, files)
+            self.assertNotIn("secret.json", files)
+            self.assertNotIn("large.txt", files)
+
+    def test_shortcut_without_formats_prints_redacted_console(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "secrets.txt", "password: Abcd1234\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertIn("Findings (redacted)", res.stdout)
+            self.assertIn("Severity Rule                     Line   File", res.stdout)
+            self.assertIn("PasswordAssignment", res.stdout)
+            self.assertIn("pass**********1234", res.stdout)
+            self.assertNotIn("Abcd1234", res.stdout)
+            self.assertFalse((out / "report.json").exists(), "console mode should not write report.json")
+
     def test_html_generated_with_template(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)

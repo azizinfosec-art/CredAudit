@@ -22,6 +22,23 @@ def match_globs(path, include_globs, exclude_globs):
 def redact_secret(s: str) -> str:
     if len(s) <= 8: return REDACTION_MASK
     return f"{s[:4]}{REDACTION_MASK}{s[-4:]}"
+def redact_finding_record(record: dict) -> dict:
+    out = dict(record) if isinstance(record, dict) else {}
+    raw = str(out.get("match", "") or "")
+    redacted = str(out.get("redacted", "") or "")
+    if raw and (not redacted or redacted == raw):
+        redacted = redact_secret(raw)
+    if not redacted:
+        redacted = REDACTION_MASK
+    context = str(out.get("context", "") or "")
+    if raw and context:
+        context = context.replace(raw, redacted)
+    out["redacted"] = redacted
+    out["match"] = redacted
+    out["context"] = context
+    return out
+def redact_finding_records(records):
+    return [redact_finding_record(r) for r in records]
 def iter_files(root_path: str):
     if os.path.isfile(root_path):
         yield os.path.abspath(root_path); return

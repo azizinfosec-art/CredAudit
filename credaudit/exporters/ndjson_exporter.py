@@ -3,6 +3,7 @@ import os
 import time
 from datetime import datetime, timezone
 from typing import Iterable, Dict, Any, Optional
+from ..utils.common import redact_finding_record
 
 
 class NDJSONWriter:
@@ -29,14 +30,15 @@ class NDJSONWriter:
     def add_findings(self, findings: Iterable[Dict[str, Any]]) -> None:
         ts = self._now()
         for rec in findings:
+            safe = redact_finding_record(rec)
             out = {
                 "ts": ts,
-                "file": rec.get("file", ""),
-                "rule": rec.get("rule", ""),
-                "severity": rec.get("severity", "Low"),
-                "redacted": rec.get("redacted", rec.get("value", "")),
-                "context": rec.get("context", ""),
-                "line": rec.get("line", ""),
+                "file": safe.get("file", ""),
+                "rule": safe.get("rule", ""),
+                "severity": safe.get("severity", "Low"),
+                "redacted": safe.get("redacted", safe.get("value", "")),
+                "context": safe.get("context", ""),
+                "line": safe.get("line", ""),
             }
             if self._include_raw:
                 out["match"] = rec.get("match", rec.get("value", ""))
@@ -64,4 +66,3 @@ class NDJSONWriter:
                 self._f.close()
             except Exception:
                 pass
-
