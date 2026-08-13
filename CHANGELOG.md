@@ -4,16 +4,29 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning (SemVer). During 0.x, breaking changes are noted but use MINOR version bumps unless 1.0 is proposed.
 
+## [0.6.1] - 2026-08-14 (Asia/Riyadh, GMT+3)
+
+### Changed
+- HTML reports now use a cleaner security-console layout with a compact scan context header, ExtraHop/NDR-inspired dark gray panels, cyan active accents, and a gray findings table.
+- HTML report styling now avoids the removed top navigation bar so the report opens directly on the scan context and findings summary.
+
 ## [0.6.0] - 2026-08-13 (Asia/Riyadh, GMT+3)
 
 ### Added
+- CLI: `credaudit passwords PATH` intent shortcut for password-focused `.txt` scans up to 5 MB.
 - CLI: `--high-confidence`, `--min-confidence`, and `--show-evidence` for confidence-based triage.
 - Rules: high-severity `CredentialPair` for compact same-line `username:password` text entries.
+- Rules: password-only assignments after `password`, `pass`, `pwd`, `passwd`, `passphrase`, or `passcode` now take higher priority and confidence than generic secret assignments.
+- Confidence: header/metadata-style colon pairs such as `Content-Transfer-Encoding: base64` are capped below high-confidence scores.
 - Reports: JSON, CSV, NDJSON, SARIF, and HTML now include confidence/evidence metadata for findings.
 - Tests: coverage for same-line credential pairs, confidence filtering, and console evidence output.
 
 ### Changed
 - Scanner findings now include `confidence`, `finding_class`, `validity`, and redaction-safe `evidence` fields.
+- Severity is now derived from confidence: `95+` is `Critical`, `80-94` is `High`, `50-79` is `Medium`, and lower scores are `Low`.
+- Scan-style commands now stream redacted NDJSON by default to the output directory, with `--no-ndjson` available to disable it.
+- `--per-file-timeout` now defaults to `2` seconds for scan-style commands, including `--full` scans.
+- HTML reports now use a denser hacker-style triage dashboard with score filtering, responsive layout, evidence details, and filtered CSV export.
 - Cached findings without confidence metadata are rescanned when confidence filtering is requested.
 
 ## [0.5.0] - 2026-08-13 (Asia/Riyadh, GMT+3)
@@ -82,6 +95,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Security
 - None
 
+[0.6.1]: https://github.com/azizinfosec-art/CredAudit/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.3.16...v0.4.0

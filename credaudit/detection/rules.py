@@ -11,6 +11,9 @@ class Rule:
     example: str
 
 
+PASSWORD_VALUE_KEYWORD = r"(?:password|passwd|passphrase|passcode|pass|pwd)"
+
+
 def build_rules(level: Optional[int] = None) -> List['Rule']:
     """Return rule set for the given sensitivity level.
 
@@ -61,6 +64,18 @@ def build_rules(level: Optional[int] = None) -> List['Rule']:
             # Permit optional quote right after the keyword before a separator; or allow short whitespace distance
             re.compile(r"(?ix)\b(password|pass|pwd|secret|api[-_]?key|token)\b(?:\s*(?:[\"']?\s*(?:=|:|=>|:=|->)\s*)|\s{1,3})[\"']?(?=[^\s\"']{6,})(?=[^\s\"']*(?:\d|[^A-Za-z]))([^\s\"']+)[\"']?"),
             "Password/secret assignment with whitespace or separators (guarded)",
+            "password secret123",
+        ))
+        rules.append(Rule(
+            "PasswordValueAssignment",
+            re.compile(rf"\b({PASSWORD_VALUE_KEYWORD})\b\s*[\"']?(=|:|=>|:=|->)\s*[\"']?([^\s\"']{{4,}})[\"']?", re.IGNORECASE),
+            "Password-only assignment (explicit separators)",
+            "password: secret123",
+        ))
+        rules.append(Rule(
+            "PasswordValueAssignmentLoose",
+            re.compile(rf"(?ix)\b({PASSWORD_VALUE_KEYWORD})\b(?:\s*(?:[\"']?\s*(?:=|:|=>|:=|->)\s*)|\s{{1,3}})[\"']?(?=[^\s\"']{{6,}})(?=[^\s\"']*(?:\d|[^A-Za-z]))([^\s\"']+)[\"']?"),
+            "Password-only assignment with whitespace or separators (guarded)",
             "password secret123",
         ))
         rules.append(Rule(

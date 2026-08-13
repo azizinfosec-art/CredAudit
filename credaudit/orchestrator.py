@@ -455,7 +455,7 @@ def scan_paths(
     if 'sarif' in formats:
         export_sarif(export_findings, base + '.sarif')
     code = 0
-    sev_order = {"Low": 1, "Medium": 2, "High": 3}
+    sev_order = {"Low": 1, "Medium": 2, "High": 3, "Critical": 4}
     if fail_on:
         thr = sev_order[fail_on]
         worst = max([sev_order.get(f.get("severity", "Low"), 1) for f in findings_all] or [1])

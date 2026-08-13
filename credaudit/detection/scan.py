@@ -15,6 +15,8 @@ class Finding:
 SECRET_CAPTURE_GROUPS = {
     "PasswordAssignment": 3,
     "PasswordAssignmentLoose": 2,
+    "PasswordValueAssignment": 3,
+    "PasswordValueAssignmentLoose": 2,
     "AWSSecretAccessKey": 3,
     "DBConnectionString": 2,
     "TwilioAuthToken": 1,
@@ -41,6 +43,8 @@ RULE_PRIORITY = {
     "APIKeyGeneric": 70,
     "DBConnectionString": 65,
     "JWT": 60,
+    "PasswordValueAssignment": 64,
+    "PasswordValueAssignmentLoose": 54,
     "PasswordAssignment": 50,
     "PasswordAssignmentLoose": 40,
     "UsernameNearPassword": 55,
@@ -63,6 +67,8 @@ def severity_for_rule(rule_name: str) -> str:
         "JWT":"Medium",
         "PasswordAssignment":"Medium",
         "PasswordAssignmentLoose":"Medium",
+        "PasswordValueAssignment":"Medium",
+        "PasswordValueAssignmentLoose":"Medium",
         "UsernameAssignment":"Low",
         "UsernameNearPassword":"High",
         "CredentialPair":"High",
@@ -171,6 +177,29 @@ CREDENTIAL_PAIR_SECRET_DENYLIST = {
     "null",
     "true",
 }
+CREDENTIAL_PAIR_METADATA_LABELS = {
+    "accept-encoding",
+    "accept-language",
+    "cache-control",
+    "content-description",
+    "content-disposition",
+    "content-encoding",
+    "content-id",
+    "content-language",
+    "content-location",
+    "content-transfer-encoding",
+    "etag",
+    "expires",
+    "last-modified",
+    "mime-version",
+    "pragma",
+    "transfer-encoding",
+}
+CREDENTIAL_PAIR_METADATA_PREFIXES = (
+    "content-",
+    "proxy-",
+    "sec-",
+)
 COMMON_WEAK_PASSWORDS = {
     "123456",
     "12345678",
@@ -235,6 +264,8 @@ BASE_CONFIDENCE = {
     "APIKeyGeneric": 70,
     "PasswordAssignment": 70,
     "PasswordAssignmentLoose": 62,
+    "PasswordValueAssignment": 82,
+    "PasswordValueAssignmentLoose": 74,
     "CredentialPair": 74,
     "UsernameNearPassword": 68,
     "PasswordCandidate": 45,
@@ -264,6 +295,8 @@ RULE_EVIDENCE = {
     "APIKeyGeneric": "generic API key prefix pattern",
     "PasswordAssignment": "password-like keyword with explicit assignment",
     "PasswordAssignmentLoose": "password-like keyword near guarded value",
+    "PasswordValueAssignment": "password keyword with explicit assignment",
+    "PasswordValueAssignmentLoose": "password keyword near guarded value",
     "CredentialPair": "compact same-line username:password format",
     "UsernameNearPassword": "username-like line immediately before password finding",
     "PasswordCandidate": "standalone token has password-like shape",
@@ -274,6 +307,14 @@ RULE_EVIDENCE = {
 
 def _looks_like_domain(value: str) -> bool:
     return bool(re.fullmatch(r"[A-Za-z0-9.-]+\.[A-Za-z]{2,}", value or ""))
+
+PASSWORD_VALUE_KEYWORD_RE = re.compile(r"(?i)\b(password|passwd|passphrase|passcode|pass|pwd)\b")
+
+def _looks_like_metadata_label(value: str) -> bool:
+    low = str(value or "").strip().lower()
+    if low in CREDENTIAL_PAIR_METADATA_LABELS:
+        return True
+    return any(low.startswith(prefix) for prefix in CREDENTIAL_PAIR_METADATA_PREFIXES)
 
 def _looks_like_credential_pair_secret(value: str) -> bool:
     token = _clean_secret_value(value)
@@ -311,7 +352,7 @@ def _credential_pair_parts(line_text: str) -> Optional[tuple[str, str]]:
     low_user = user.lower()
     if low_user in CREDENTIAL_PAIR_USER_DENYLIST:
         return None
-    if low_user in {"password", "pass", "pwd", "secret", "token", "api_key", "apikey", "key"}:
+    if low_user in {"password", "passwd", "passphrase", "passcode", "pass", "pwd", "secret", "token", "api_key", "apikey", "key"}:
         return None
     if not CREDENTIAL_PAIR_USER_RE.fullmatch(user):
         return None
@@ -344,8 +385,19 @@ def _finding_class(rule_name: str, confidence: int) -> str:
         return "possible"
     return "indicator"
 
+def _severity_from_confidence(confidence: int) -> str:
+    score = int(confidence or 0)
+    if score >= 95:
+        return "Critical"
+    if score >= 80:
+        return "High"
+    if score >= 50:
+        return "Medium"
+    return "Low"
+
 def _score_finding(finding: Finding, lines: List[str], credential_pair_count: int) -> tuple[int, List[str], str]:
     score = BASE_CONFIDENCE.get(finding.rule, 50)
+    score_cap = 99
     evidence = [RULE_EVIDENCE.get(finding.rule, "rule pattern matched")]
     path = finding.file or ""
     ext = os.path.splitext(path)[1].lower()
@@ -355,12 +407,17 @@ def _score_finding(finding: Finding, lines: List[str], credential_pair_count: in
     low_ctx = ctx.lower()
 
     if finding.rule == "CredentialPair":
+        score_cap = 89
         pair = _credential_pair_parts(ctx)
         if pair:
             user, secret = pair
             score += 6
             evidence.append("line has no whitespace around the credential separator")
-            if "@" in user or "\\" in user or "." in user:
+            metadata_label = _looks_like_metadata_label(user)
+            if metadata_label:
+                score_cap = 69
+                evidence.append("left side looks like an HTTP/MIME metadata label, not a username")
+            elif "@" in user or "\\" in user or "." in user:
                 score += 5
                 evidence.append("left side looks like an account name or email")
             else:
@@ -384,8 +441,11 @@ def _score_finding(finding: Finding, lines: List[str], credential_pair_count: in
         if credential_pair_count >= 2:
             score += 6
             evidence.append("file contains multiple credential-pair lines")
-    elif finding.rule in {"PasswordAssignment", "PasswordAssignmentLoose"}:
-        if re.search(r"(?i)\b(password|pass|pwd|secret|api[-_]?key|token)\b", ctx):
+    elif finding.rule in {"PasswordAssignment", "PasswordAssignmentLoose", "PasswordValueAssignment", "PasswordValueAssignmentLoose"}:
+        if finding.rule in {"PasswordValueAssignment", "PasswordValueAssignmentLoose"} and PASSWORD_VALUE_KEYWORD_RE.search(ctx):
+            score += 10
+            evidence.append("value appears after a password/pass/pwd keyword")
+        elif re.search(r"(?i)\b(password|pass|pwd|secret|api[-_]?key|token)\b", ctx):
             score += 6
             evidence.append("context contains a secret-related keyword")
         if re.search(r"(=|:|=>|:=|->)", ctx):
@@ -430,7 +490,7 @@ def _score_finding(finding: Finding, lines: List[str], credential_pair_count: in
     if any(ph in low_ctx for ph in SUPPRESS_PHRASES):
         score -= 20
         evidence.append("context contains documentation or policy wording")
-    return max(0, min(99, int(score))), evidence, ("unknown" if finding.rule in PROVIDER_VALIDITY_RULES else "not_applicable")
+    return max(0, min(score_cap, int(score))), evidence, ("unknown" if finding.rule in PROVIDER_VALIDITY_RULES else "not_applicable")
 
 def _annotate_findings(findings: List[Finding], lines: List[str]) -> List[Finding]:
     credential_pair_count = sum(1 for line in lines if _credential_pair_parts(line))
@@ -440,6 +500,7 @@ def _annotate_findings(findings: List[Finding], lines: List[str]) -> List[Findin
         finding.evidence = evidence
         finding.validity = validity
         finding.finding_class = _finding_class(finding.rule, score)
+        finding.severity = _severity_from_confidence(score)
     return findings
 
 def _username_neighbor_value(line_text: str) -> Optional[str]:
@@ -471,7 +532,7 @@ def _username_neighbor_value(line_text: str) -> Optional[str]:
     return token
 
 def _finding_rank(finding: Finding) -> tuple[int, int]:
-    sev_rank = {"Low": 1, "Medium": 2, "High": 3}.get(finding.severity, 1)
+    sev_rank = {"Low": 1, "Medium": 2, "High": 3, "Critical": 4}.get(finding.severity, 1)
     return sev_rank, RULE_PRIORITY.get(finding.rule, 30)
 
 def dedupe_findings(findings: List[Finding]) -> List[Finding]:
@@ -550,7 +611,7 @@ def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Op
     password_like_lines = {
         int(f.line or 0)
         for f in deduped
-        if f.rule in {"PasswordAssignment", "PasswordAssignmentLoose", "PasswordCandidate"}
+        if f.rule in {"PasswordAssignment", "PasswordAssignmentLoose", "PasswordValueAssignment", "PasswordValueAssignmentLoose", "PasswordCandidate"}
     }
     if only_set is None or "UsernameNearPassword" in only_set:
         for line_no in sorted(password_like_lines):
@@ -565,7 +626,7 @@ def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Op
     stronger_password_lines = {
         int(f.line or 0)
         for f in deduped
-        if f.rule in {"PasswordAssignment", "PasswordAssignmentLoose"}
+        if f.rule in {"PasswordAssignment", "PasswordAssignmentLoose", "PasswordValueAssignment", "PasswordValueAssignmentLoose"}
     }
     final = [
         f for f in deduped

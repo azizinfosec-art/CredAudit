@@ -16,13 +16,13 @@ TEMPLATE = """<!DOCTYPE html>
   <style>
     :root{
       --bg:#ffffff; --fg:#101418; --muted:#4b5563; --card:#f8fafc; --border:#e5e7eb;
-      --sev-high:#ffe5e5; --sev-med:#fff4e5; --sev-low:#eef7ff; --code:#f6f8fa;
+      --sev-critical:#ffe4ec; --sev-high:#ffe5e5; --sev-med:#fff4e5; --sev-low:#eef7ff; --code:#f6f8fa;
       --accent:#0ea5e9;
     }
     /* Hacker-style dark theme: neon green on black, with high-contrast severity */
     .dark{
       --bg:#000000; --fg:#b7f5c0; --muted:#7bbf89; --card:#0a140a; --border:#113311; --code:#0a1f0a; --accent:#00ff66;
-      --sev-high: rgba(255, 77, 77, 0.12); --sev-med: rgba(255, 209, 102, 0.12); --sev-low: rgba(110, 231, 255, 0.12);
+      --sev-critical: rgba(244, 63, 94, 0.16); --sev-high: rgba(255, 77, 77, 0.12); --sev-med: rgba(255, 209, 102, 0.12); --sev-low: rgba(110, 231, 255, 0.12);
     }
     *{box-sizing:border-box}
     body{font-family:Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--fg);margin:24px}
@@ -42,15 +42,18 @@ TEMPLATE = """<!DOCTYPE html>
     th,td{border-bottom:1px solid var(--border);padding:10px 8px;font-size:13px;vertical-align:top}
     thead th{position:sticky;top:0;background:var(--card);text-align:left}
     th.sortable{cursor:pointer}
+    .sev-Critical{background:var(--sev-critical)}
     .sev-High{background:var(--sev-high)}
     .sev-Medium{background:var(--sev-med)}
     .sev-Low{background:var(--sev-low)}
     code{background:var(--code);padding:2px 4px;border-radius:4px}
     .path{font-family:Consolas,monospace;word-break:break-all}
     .badge{display:inline-block;padding:2px 6px;border-radius:999px;font-size:12px;border:1px solid var(--border)}
+    .badge.Critical{background:#ffe4e6}
     .badge.High{background:#fee2e2}
     .badge.Medium{background:#ffedd5}
     .badge.Low{background:#dbeafe}
+    .dark .badge.Critical{background:#3f0713;border-color:#f43f5e;color:#fecdd3}
     .dark .badge.High{background:#330000;border-color:#ff4d4d;color:#ff8a8a}
     .dark .badge.Medium{background:#332600;border-color:#ffd166;color:#ffe599}
     .dark .badge.Low{background:#002733;border-color:#6ee7ff;color:#a5f3ff}
@@ -73,6 +76,7 @@ TEMPLATE = """<!DOCTYPE html>
     <span class="meta">v{{ version }} &middot; {{ generated_at }} &middot; Findings: {{ total_count }} &middot; Files: {{ file_count }}</span>
   </header>
   <div class="summary">
+    <div class="card sev-filter" data-sev="Critical">Critical: <b>{{ counts.Critical }}</b></div>
     <div class="card sev-filter" data-sev="High">High: <b>{{ counts.High }}</b></div>
     <div class="card sev-filter" data-sev="Medium">Medium: <b>{{ counts.Medium }}</b></div>
     <div class="card sev-filter" data-sev="Low">Low: <b>{{ counts.Low }}</b></div>
@@ -89,6 +93,7 @@ TEMPLATE = """<!DOCTYPE html>
   </div>
   <div class="controls">
     <input id="q" type="text" placeholder="Filter by file, rule, context..." />
+    <label class="chip"><input type="checkbox" id="sevCrit" checked /> Critical</label>
     <label class="chip"><input type="checkbox" id="sevHigh" checked /> High</label>
     <label class="chip"><input type="checkbox" id="sevMed" checked /> Medium</label>
     <label class="chip"><input type="checkbox" id="sevLow" checked /> Low</label>
@@ -148,7 +153,7 @@ TEMPLATE = """<!DOCTYPE html>
     const qsa=(s,el=document)=>Array.from(el.querySelectorAll(s));
     const tbl=qs('#tbl');
     const q=qs('#q');
-    const cbH=qs('#sevHigh'), cbM=qs('#sevMed'), cbL=qs('#sevLow');
+    const cbC=qs('#sevCrit'), cbH=qs('#sevHigh'), cbM=qs('#sevMed'), cbL=qs('#sevLow');
     const btnClear=qs('#clear');
     const btnTheme=qs('#toggleTheme');
     const btnRaw=qs('#toggleRaw');
@@ -164,7 +169,7 @@ TEMPLATE = """<!DOCTYPE html>
     let filtered = DATA.slice();
     let page = 1;
     let PAGE_SIZE = parseInt(selPageSize.value,10) || 500;
-    const sevRank={High:3,Medium:2,Low:1};
+    const sevRank={Critical:4,High:3,Medium:2,Low:1};
     const BASE_NAME = {{ base_name_js }};
 
     function escapeHtml(s){
@@ -284,7 +289,7 @@ TEMPLATE = """<!DOCTYPE html>
     }
     function applyFilters(){
       const term=(q.value||'').trim().toLowerCase();
-      const allow={High:cbH.checked, Medium:cbM.checked, Low:cbL.checked};
+      const allow={Critical:cbC.checked, High:cbH.checked, Medium:cbM.checked, Low:cbL.checked};
       filtered = DATA.filter(f=>{
         const sev=f.severity||'Low'; if(!allow[sev]) return false;
         if(!term) return true;
@@ -296,14 +301,14 @@ TEMPLATE = """<!DOCTYPE html>
       page = 1;
       renderRows();
     }
-    function clearFilters(){ q.value=''; cbH.checked=cbM.checked=cbL.checked=true; applyFilters(); }
+    function clearFilters(){ q.value=''; cbC.checked=cbH.checked=cbM.checked=cbL.checked=true; applyFilters(); }
     function toggleTheme(){ document.body.classList.toggle('dark'); }
     function toggleRaw(){ showRaw=!showRaw; btnRaw.textContent = showRaw ? 'Hide Raw Secrets' : 'Show Raw Secrets'; qsa('code.val').forEach(el=>{ el.textContent = showRaw ? el.dataset.raw : el.dataset.redacted; }); }
-    q.addEventListener('input', applyFilters); cbH.addEventListener('change', applyFilters); cbM.addEventListener('change', applyFilters); cbL.addEventListener('change', applyFilters);
+    q.addEventListener('input', applyFilters); cbC.addEventListener('change', applyFilters); cbH.addEventListener('change', applyFilters); cbM.addEventListener('change', applyFilters); cbL.addEventListener('change', applyFilters);
     selPageSize.addEventListener('change', ()=>{ PAGE_SIZE = parseInt(selPageSize.value,10)||500; page=1; renderRows(); });
     btnClear.addEventListener('click', clearFilters); btnTheme.addEventListener('click', toggleTheme); btnRaw.addEventListener('click', toggleRaw); btnDownload.addEventListener('click', downloadCsvPage); btnDownloadAll.addEventListener('click', downloadCsvAll);
     // Clickable severity summary cards (toggle filters)
-    qsa('.sev-filter').forEach(el=>{ const sev=el.dataset.sev; const map={High:cbH, Medium:cbM, Low:cbL}; const sync=()=>{ el.style.opacity= map[sev].checked ? '1' : '0.5'; }; el.addEventListener('click', ()=>{ const c=map[sev]; c.checked=!c.checked; applyFilters(); sync(); }); sync(); });
+    qsa('.sev-filter').forEach(el=>{ const sev=el.dataset.sev; const map={Critical:cbC, High:cbH, Medium:cbM, Low:cbL}; const sync=()=>{ el.style.opacity= map[sev].checked ? '1' : '0.5'; }; el.addEventListener('click', ()=>{ const c=map[sev]; c.checked=!c.checked; applyFilters(); sync(); }); sync(); });
     // Copy value on click with toast
     function showToast(msg){ const t=document.getElementById('toast'); if(!t) return; t.textContent=msg; t.classList.remove('hidden'); t.style.opacity='1'; setTimeout(()=>{ t.style.opacity='0'; }, 1200); setTimeout(()=>{ t.classList.add('hidden'); }, 1600); }
     tbody.addEventListener('click', (e)=>{ const el = e.target.closest && e.target.closest('code.val'); if(!el) return; const text = showRaw ? (el.dataset.raw||'') : (el.dataset.redacted||''); if(navigator.clipboard && typeof navigator.clipboard.writeText==='function'){ navigator.clipboard.writeText(text).then(()=>showToast('Copied')); } else { const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); showToast('Copied'); }catch(ex){} document.body.removeChild(ta); } });
@@ -347,7 +352,7 @@ TEMPLATE = """<!DOCTYPE html>
 
 
 def export_html(findings, p, redacted_only=False):
-    counts = {"High": 0, "Medium": 0, "Low": 0}
+    counts = {"Critical": 0, "High": 0, "Medium": 0, "Low": 0}
     files = set()
     # Normalize incoming findings to expected schema/casing
     normalized = []
@@ -355,9 +360,9 @@ def export_html(findings, p, redacted_only=False):
         f = dict(f) if isinstance(f, dict) else {}
         sev_raw = f.get("severity", "Low")
         sev = str(sev_raw).strip().title()
-        if sev not in ("High", "Medium", "Low"):
+        if sev not in ("Critical", "High", "Medium", "Low"):
             # Map common variants
-            m = {"Sev-High": "High", "Sev-Medium": "Medium", "Sev-Low": "Low", "Critical": "High"}
+            m = {"Sev-Critical": "Critical", "Sev-High": "High", "Sev-Medium": "Medium", "Sev-Low": "Low"}
             sev = m.get(sev, "Low")
         f["severity"] = sev
         # Ensure keys exist to avoid JS undefineds

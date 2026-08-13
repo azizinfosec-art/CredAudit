@@ -1,9 +1,11 @@
 import json
+import io
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 import zipfile
 
@@ -66,6 +68,40 @@ def load_json_array(p: Path):
 
 
 class TestCliScan(unittest.TestCase):
+    def test_full_scan_default_per_file_timeout_is_two_seconds(self):
+        from credaudit import cli
+
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            out = tmp / "out"
+            cfg = mock.Mock()
+            cfg.include_ext = [".txt"]
+            cfg.include_glob = []
+            cfg.exclude_glob = []
+            cfg.threads = 1
+            cfg.workers = 1
+            cfg.cache_file = str(tmp / "cache.json")
+            cfg.entropy_min_length = 20
+            cfg.entropy_threshold = 4.0
+
+            with mock.patch("credaudit.cli.Config.from_yaml", return_value=cfg), \
+                 mock.patch("credaudit.cli.collect_files", return_value=[str(tmp / "secrets.txt")]), \
+                 mock.patch("credaudit.cli.scan_paths", return_value=([], 0)) as scan_mock, \
+                 mock.patch("credaudit.cli.print_banner"), \
+                 mock.patch("sys.stdout", io.StringIO()):
+                rc = cli.main([
+                    "scan",
+                    str(tmp),
+                    "-o", str(out),
+                    "--full",
+                    "--no-cache",
+                    "--no-ndjson",
+                    "--no-banner",
+                ])
+
+            self.assertEqual(rc, 0)
+            self.assertEqual(scan_mock.call_args.kwargs.get("per_file_timeout"), 2.0)
+
     def test_scan_ndjson_and_json_roundtrip(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
@@ -91,7 +127,7 @@ class TestCliScan(unittest.TestCase):
             j = out_dir / "report.json"
             self.assertTrue(j.exists(), "report.json not found")
             arr = load_json_array(j)
-            self.assertTrue(any(f.get("rule") == "PasswordAssignment" for f in arr))
+            self.assertTrue(any(f.get("rule") == "PasswordValueAssignment" for f in arr))
 
     def test_only_rules_filters_findings(self):
         with tempfile.TemporaryDirectory() as td:
@@ -237,13 +273,13 @@ class TestCliScan(unittest.TestCase):
             arr = load_json_array(out / "report.json")
             self.assertTrue(
                 any(
-                    f.get("rule") == "PasswordAssignment" and f.get("match") == "apxc@s0203"
+                    f.get("rule") == "PasswordValueAssignment" and f.get("match") == "apxc@s0203"
                     for f in arr
                 ),
                 arr,
             )
             self.assertFalse(
-                any(f.get("rule") == "PasswordAssignment" and f.get("match") == "user" for f in arr),
+                any(f.get("rule") in {"PasswordAssignment", "PasswordValueAssignment"} and f.get("match") == "user" for f in arr),
                 arr,
             )
 
@@ -265,7 +301,7 @@ class TestCliScan(unittest.TestCase):
             password_matches = {
                 f.get("match")
                 for f in arr
-                if f.get("rule") == "PasswordAssignment"
+                if f.get("rule") == "PasswordValueAssignment"
             }
             self.assertIn("Stage123!", password_matches)
             self.assertIn("Backup456!", password_matches)
@@ -287,7 +323,7 @@ class TestCliScan(unittest.TestCase):
             arr = load_json_array(out / "report.json")
             self.assertFalse(
                 any(
-                    f.get("rule") == "PasswordAssignment" and f.get("match") == "NotAdjacent123!"
+                    f.get("rule") in {"PasswordAssignment", "PasswordValueAssignment"} and f.get("match") == "NotAdjacent123!"
                     for f in arr
                 ),
                 arr,
@@ -310,7 +346,7 @@ class TestCliScan(unittest.TestCase):
             findings_by_line = {}
             for finding in arr:
                 findings_by_line.setdefault(finding.get("line"), []).append(finding)
-            self.assertEqual([f.get("rule") for f in findings_by_line.get(1, [])], ["PasswordAssignment"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(1, [])], ["PasswordValueAssignment"])
             self.assertEqual([f.get("match") for f in findings_by_line.get(1, [])], ["Secret123!"])
             self.assertEqual([f.get("rule") for f in findings_by_line.get(2, [])], ["APIKeyGeneric"])
             self.assertEqual([f.get("match") for f in findings_by_line.get(2, [])], ["sk-abcde1234567890"])
@@ -358,7 +394,7 @@ class TestCliScan(unittest.TestCase):
             self.assertEqual([f.get("match") for f in findings_by_line.get(1, [])], ["myo@193"])
             self.assertEqual([f.get("rule") for f in findings_by_line.get(2, [])], ["PasswordCandidate"])
             self.assertEqual([f.get("match") for f in findings_by_line.get(2, [])], ["mISX%%13402"])
-            self.assertEqual([f.get("rule") for f in findings_by_line.get(3, [])], ["PasswordAssignment"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(3, [])], ["PasswordValueAssignment"])
             self.assertNotIn(4, findings_by_line)
             self.assertNotIn(5, findings_by_line)
             self.assertNotIn(6, findings_by_line)
@@ -390,7 +426,7 @@ class TestCliScan(unittest.TestCase):
             self.assertEqual([f.get("rule") for f in findings_by_line.get(3, [])], ["UsernameNearPassword"])
             self.assertEqual([f.get("severity") for f in findings_by_line.get(3, [])], ["High"])
             self.assertEqual([f.get("match") for f in findings_by_line.get(3, [])], ["alice"])
-            self.assertEqual([f.get("rule") for f in findings_by_line.get(4, [])], ["PasswordAssignment"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(4, [])], ["PasswordValueAssignment"])
             self.assertEqual([f.get("rule") for f in findings_by_line.get(6, [])], ["PasswordCandidate"])
             self.assertEqual([f.get("rule") for f in findings_by_line.get(7, [])], ["UsernameNearPassword"])
             self.assertEqual([f.get("severity") for f in findings_by_line.get(7, [])], ["High"])
@@ -446,6 +482,7 @@ class TestCliScan(unittest.TestCase):
                     "admin:Secret123!",
                     "password: Abcd1234",
                     "mISX%%13402",
+                    "api_key=sk-abcde1234567890",
                     "please rotate password soon",
                 ]) + "\n",
             )
@@ -467,7 +504,7 @@ class TestCliScan(unittest.TestCase):
             self.assertTrue(all(int(f.get("confidence", 0)) >= 80 for f in arr), arr)
             rules = {f.get("rule") for f in arr}
             self.assertIn("CredentialPair", rules)
-            self.assertIn("PasswordAssignment", rules)
+            self.assertIn("PasswordValueAssignment", rules)
             self.assertNotIn("PasswordCandidate", rules)
             self.assertNotIn("PasswordKeyword", rules)
             credential = next(f for f in arr if f.get("rule") == "CredentialPair")
@@ -496,6 +533,124 @@ class TestCliScan(unittest.TestCase):
             self.assertIn("CredentialPair", res.stdout)
             self.assertNotIn("PasswordCandidate", res.stdout)
 
+    def test_passwords_intent_finds_password_shapes_without_rule_names(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(
+                tmp / "client-creds.txt",
+                "\n".join([
+                    "admin:Secret123!",
+                    "password: Abcd1234",
+                    "mISX%%13402",
+                    "please rotate password soon",
+                ]) + "\n",
+            )
+            write_file(tmp / "config.json", "{\"password\":\"Json1234\"}\n")
+            out = tmp / "out"
+            res = run_cli([
+                "passwords",
+                str(tmp),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            rules = {f.get("rule") for f in arr}
+            self.assertIn("CredentialPair", rules)
+            self.assertIn("PasswordValueAssignment", rules)
+            self.assertIn("PasswordCandidate", rules)
+            self.assertNotIn("PasswordKeyword", rules)
+            self.assertFalse(any(f.get("match") == "sk-abcde1234567890" for f in arr), arr)
+            self.assertEqual({Path(f.get("file", "")).name for f in arr}, {"client-creds.txt"})
+            self.assertTrue(all(int(f.get("confidence", 0)) >= 50 for f in arr), arr)
+
+    def test_password_keyword_values_take_priority_and_high_confidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(
+                tmp / "passwords.txt",
+                "password: Secret123!\npasswd=Root123!\npasscode: Code1234\napi_key=sk-abcde1234567890\n",
+            )
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--include-ext", ".txt",
+                "--max-size", "5",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            by_match = {f.get("match"): f for f in arr}
+            for value in ["Secret123!", "Root123!", "Code1234"]:
+                self.assertEqual(by_match.get(value, {}).get("rule"), "PasswordValueAssignment")
+                self.assertGreaterEqual(int(by_match.get(value, {}).get("confidence", 0)), 95)
+                self.assertEqual(by_match.get(value, {}).get("severity"), "Critical")
+                self.assertTrue(
+                    any("after a password/pass/pwd keyword" in x for x in by_match.get(value, {}).get("evidence", [])),
+                    by_match.get(value),
+                )
+            self.assertEqual(by_match.get("sk-abcde1234567890", {}).get("rule"), "APIKeyGeneric")
+
+    def test_metadata_style_colon_pairs_are_not_scored_like_passwords(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(
+                tmp / "headers.txt",
+                "Content-Transfer-Encoding: base64\npassword: Secret123!\n",
+            )
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--include-ext", ".txt",
+                "--max-size", "5",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            by_match = {f.get("match"): f for f in arr}
+            metadata = by_match.get("base64")
+            self.assertIsNotNone(metadata, arr)
+            self.assertEqual(metadata.get("rule"), "CredentialPair")
+            self.assertEqual(metadata.get("severity"), "Medium")
+            self.assertLessEqual(int(metadata.get("confidence", 0)), 69)
+            self.assertGreaterEqual(int(metadata.get("confidence", 0)), 60)
+            self.assertTrue(
+                any("metadata label" in x for x in metadata.get("evidence", [])),
+                metadata,
+            )
+            password = by_match.get("Secret123!")
+            self.assertEqual(password.get("rule"), "PasswordValueAssignment")
+            self.assertEqual(password.get("severity"), "Critical")
+            self.assertGreaterEqual(int(password.get("confidence", 0)), 95)
+
+    def test_fail_on_critical_uses_confidence_based_severity(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "passwords.txt", "password: Secret123!\nContent-Transfer-Encoding: base64\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--include-ext", ".txt",
+                "--max-size", "5",
+                "--fail-on", "Critical",
+                "--no-cache",
+                "--no-banner",
+            ])
+            self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+            self.assertIn("Critical", res.stdout)
+
     def test_shortcut_without_formats_prints_redacted_console(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
@@ -508,10 +663,31 @@ class TestCliScan(unittest.TestCase):
             self.assertEqual(res.returncode, 0, res.stderr)
             self.assertIn("Findings (redacted)", res.stdout)
             self.assertIn("Severity Rule                     Line   File", res.stdout)
-            self.assertIn("PasswordAssignment", res.stdout)
+            self.assertIn("PasswordValueAssignment", res.stdout)
             self.assertIn("A****4", res.stdout)
             self.assertNotIn("Abcd1234", res.stdout)
             self.assertFalse((out / "report.json").exists(), "console mode should not write report.json")
+            nd = out / "findings.ndjson"
+            self.assertTrue(nd.exists() and nd.stat().st_size > 0, "default NDJSON stream was not written")
+            self.assertIn("NDJSON:", res.stdout)
+            first = json.loads(nd.read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(first.get("rule"), "PasswordValueAssignment")
+            self.assertIn("A****4", first.get("redacted", ""))
+            self.assertNotIn("Abcd1234", nd.read_text(encoding="utf-8"))
+
+    def test_no_ndjson_disables_default_stream(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "secrets.txt", "password: Abcd1234\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--no-ndjson",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertIn("Findings (redacted)", res.stdout)
+            self.assertFalse((out / "findings.ndjson").exists())
 
     def test_formats_print_clickable_file_urls(self):
         with tempfile.TemporaryDirectory() as td:
@@ -526,13 +702,16 @@ class TestCliScan(unittest.TestCase):
             self.assertEqual(res.returncode, 0, res.stderr)
             html_reports = list(out.glob("report_*.html"))
             json_reports = list(out.glob("report_*.json"))
+            ndjson_reports = list(out.glob("findings_*.ndjson"))
             self.assertEqual(len(html_reports), 1)
             self.assertEqual(len(json_reports), 1)
+            self.assertEqual(len(ndjson_reports), 1)
             html = html_reports[0].resolve().as_uri()
             json_report = json_reports[0].resolve().as_uri()
             self.assertIn("Report URLs:", res.stdout)
             self.assertIn(f"HTML: {html}", res.stdout)
             self.assertIn(f"JSON: {json_report}", res.stdout)
+            self.assertIn("NDJSON:", res.stdout)
 
     def test_html_generated_with_template(self):
         with tempfile.TemporaryDirectory() as td:
@@ -586,7 +765,7 @@ class TestCliScan(unittest.TestCase):
             ])
             self.assertEqual(res.returncode, 0, res.stderr)
             arr = load_json_array(out / "report.json")
-            ok = any((f.get("rule") in ("PasswordAssignment","PasswordAssignmentLoose")) for f in arr)
+            ok = any((f.get("rule") in ("PasswordAssignment","PasswordAssignmentLoose","PasswordValueAssignment","PasswordValueAssignmentLoose")) for f in arr)
             self.assertTrue(ok, f"No password-like finding in HAR: {arr}")
 
     def test_scan_archive_zip(self):

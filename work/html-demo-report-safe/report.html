@@ -268,7 +268,7 @@
     }
   </style>
 </head>
-<body{% if safe_report %} class="safe-report"{% endif %}>
+<body class="safe-report">
   <div class="shell">
     <div class="contextBar">
       <div class="crumb">
@@ -278,8 +278,8 @@
         <strong>Credential Detections</strong>
       </div>
       <div class="contextMeta">
-        <span>{{ generated_at }}</span>
-        <span>{{ shown_count }} / {{ total_count }}</span>
+        <span>2026-08-14 01:53:22</span>
+        <span>6 / 6</span>
       </div>
     </div>
 
@@ -289,18 +289,18 @@
         <div class="brandText">
           <div class="titleLine">
             <h1>CredAudit Report</h1>
-            <span class="version">v{{ version }}</span>
-            {% if safe_report %}<span class="modeBadge safe">safe/redacted</span>{% else %}<span class="modeBadge raw">raw enabled</span>{% endif %}
+            <span class="version">v0.6.1</span>
+            <span class="modeBadge safe">safe/redacted</span>
           </div>
-          <div class="byline">by <a href="{{ author_url }}" target="_blank" rel="noopener">{{ author_name }}</a></div>
+          <div class="byline">by <a href="https://github.com/azizinfosec-art/CredAudit" target="_blank" rel="noopener">azizinfosec-art</a></div>
         </div>
       </div>
       <div class="metricGrid" aria-label="Finding summary">
-        <div class="metric"><span>Total</span><strong>{{ total_count }}</strong></div>
-        <div class="metric critical"><span>Critical</span><strong>{{ counts.Critical }}</strong></div>
-        <div class="metric high"><span>High</span><strong>{{ counts.High }}</strong></div>
-        <div class="metric medium"><span>Medium</span><strong>{{ counts.Medium }}</strong></div>
-        <div class="metric low"><span>Low</span><strong>{{ counts.Low }}</strong></div>
+        <div class="metric"><span>Total</span><strong>6</strong></div>
+        <div class="metric critical"><span>Critical</span><strong>2</strong></div>
+        <div class="metric high"><span>High</span><strong>1</strong></div>
+        <div class="metric medium"><span>Medium</span><strong>3</strong></div>
+        <div class="metric low"><span>Low</span><strong>0</strong></div>
       </div>
     </header>
 
@@ -349,17 +349,15 @@
                 <option value="500" selected>500</option>
               </select>
             </label>
-            {% if not safe_report %}<button class="btn rawOnly" id="toggleRaw" type="button">Show Raw</button>{% endif %}
+            
             <button class="btn" id="clear" type="button">Reset</button>
-            <a class="btn" href="{{ json_name }}" download>JSON</a>
-            <a class="btn" href="{{ csv_name }}" download>CSV</a>
+            <a class="btn" href="report.json" download>JSON</a>
+            <a class="btn" href="report.csv" download>CSV</a>
             <button class="btn" id="exportFiltered" type="button">Export Filtered</button>
           </div>
         </div>
 
-        {% if truncated %}
-        <div class="statusLine" style="margin-bottom:8px">Showing {{ shown_count }} of {{ total_count }} findings in this HTML file.</div>
-        {% endif %}
+        
 
         <div class="tableFrame">
           <table id="tbl">
@@ -397,9 +395,9 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>
-  const DATA = {{ data_json|safe }};
-  const BASE_NAME = {{ base_name_js }};
-  const SAFE_REPORT = {{ safe_report_js }};
+  const DATA = [{"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt", "rule": "PasswordValueAssignment", "match": "S****!", "redacted": "S****!", "context": "password: S****!", "severity": "Critical", "line": 1, "confidence": 99, "finding_class": "likely", "validity": "not_applicable", "evidence": ["password keyword with explicit assignment", "value appears after a password/pass/pwd keyword", "context uses an assignment separator", "value has password-like complexity", "source file type commonly stores configuration or credentials"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt", "rule": "CredentialPair", "match": "R****!", "redacted": "R****!", "context": "admin:R****!", "severity": "High", "line": 2, "confidence": 89, "finding_class": "likely", "validity": "not_applicable", "evidence": ["compact same-line username:password format", "line has no whitespace around the credential separator", "left side is username-like", "right side has password-like complexity", "source file is plain text", "source file is 5 MB or smaller", "filename suggests credential material", "file contains multiple credential-pair lines"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt", "rule": "CredentialPair", "match": "b****4", "redacted": "b****4", "context": "Content-Transfer-Encoding: b****4", "severity": "Medium", "line": 3, "confidence": 69, "finding_class": "possible", "validity": "not_applicable", "evidence": ["compact same-line username:password format", "line has no whitespace around the credential separator", "left side looks like an HTTP/MIME metadata label, not a username", "source file is plain text", "source file is 5 MB or smaller", "filename suggests credential material", "file contains multiple credential-pair lines"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt", "rule": "PasswordCandidate", "match": "m****2", "redacted": "m****2", "context": "m****2", "severity": "Medium", "line": 4, "confidence": 58, "finding_class": "possible", "validity": "not_applicable", "evidence": ["standalone token has password-like shape", "token contains letters, digits, and complexity markers", "source file is plain text"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\service.env", "rule": "APIKeyGeneric", "match": "sk****90", "redacted": "sk****90", "context": "api_key=sk****90", "severity": "Medium", "line": 1, "confidence": 70, "finding_class": "possible", "validity": "not_applicable", "evidence": ["generic API key prefix pattern"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\service.env", "rule": "PasswordValueAssignment", "match": "B****!", "redacted": "B****!", "context": "password=B****!", "severity": "Critical", "line": 2, "confidence": 99, "finding_class": "likely", "validity": "not_applicable", "evidence": ["password keyword with explicit assignment", "value appears after a password/pass/pwd keyword", "context uses an assignment separator", "value has password-like complexity", "source file type commonly stores configuration or credentials"]}];
+  const BASE_NAME = "report";
+  const SAFE_REPORT = true;
   (function(){
     const tbody = document.querySelector('#tbl tbody');
     const q = document.getElementById('q');

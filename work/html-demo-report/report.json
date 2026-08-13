@@ -1,0 +1,115 @@
+[
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt",
+    "rule": "PasswordValueAssignment",
+    "match": "Secret123!",
+    "redacted": "Se****3!",
+    "context": "password: Secret123!",
+    "severity": "Critical",
+    "line": 1,
+    "confidence": 99,
+    "finding_class": "likely",
+    "validity": "not_applicable",
+    "evidence": [
+      "password keyword with explicit assignment",
+      "value appears after a password/pass/pwd keyword",
+      "context uses an assignment separator",
+      "value has password-like complexity",
+      "source file type commonly stores configuration or credentials"
+    ]
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt",
+    "rule": "CredentialPair",
+    "match": "Root123!",
+    "redacted": "R****!",
+    "context": "admin:Root123!",
+    "severity": "High",
+    "line": 2,
+    "confidence": 89,
+    "finding_class": "likely",
+    "validity": "not_applicable",
+    "evidence": [
+      "compact same-line username:password format",
+      "line has no whitespace around the credential separator",
+      "left side is username-like",
+      "right side has password-like complexity",
+      "source file is plain text",
+      "source file is 5 MB or smaller",
+      "filename suggests credential material",
+      "file contains multiple credential-pair lines"
+    ]
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt",
+    "rule": "CredentialPair",
+    "match": "base64",
+    "redacted": "b****4",
+    "context": "Content-Transfer-Encoding: base64",
+    "severity": "Medium",
+    "line": 3,
+    "confidence": 69,
+    "finding_class": "possible",
+    "validity": "not_applicable",
+    "evidence": [
+      "compact same-line username:password format",
+      "line has no whitespace around the credential separator",
+      "left side looks like an HTTP/MIME metadata label, not a username",
+      "source file is plain text",
+      "source file is 5 MB or smaller",
+      "filename suggests credential material",
+      "file contains multiple credential-pair lines"
+    ]
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt",
+    "rule": "PasswordCandidate",
+    "match": "mISX%%13402",
+    "redacted": "mI****02",
+    "context": "mISX%%13402",
+    "severity": "Medium",
+    "line": 4,
+    "confidence": 58,
+    "finding_class": "possible",
+    "validity": "not_applicable",
+    "evidence": [
+      "standalone token has password-like shape",
+      "token contains letters, digits, and complexity markers",
+      "source file is plain text"
+    ]
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\service.env",
+    "rule": "APIKeyGeneric",
+    "match": "sk-abcde1234567890",
+    "redacted": "sk-a****7890",
+    "context": "api_key=sk-abcde1234567890",
+    "severity": "Medium",
+    "line": 1,
+    "confidence": 70,
+    "finding_class": "possible",
+    "validity": "not_applicable",
+    "evidence": [
+      "generic API key prefix pattern"
+    ]
+  },
+  {
+    "file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\service.env",
+    "rule": "PasswordValueAssignment",
+    "match": "Backup456!",
+    "redacted": "Ba****6!",
+    "context": "password=Backup456!",
+    "severity": "Critical",
+    "line": 2,
+    "confidence": 99,
+    "finding_class": "likely",
+    "validity": "not_applicable",
+    "evidence": [
+      "password keyword with explicit assignment",
+      "value appears after a password/pass/pwd keyword",
+      "context uses an assignment separator",
+      "value has password-like complexity",
+      "source file type commonly stores configuration or credentials"
+    ]
+  }
+]

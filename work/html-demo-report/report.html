@@ -7,32 +7,24 @@
   <style>
     :root{
       color-scheme: dark;
-      --bg:#101010;
-      --nav:#060606;
-      --bar:#1c1c1c;
-      --panel:#252525;
-      --panel-2:#2b2b2b;
-      --ink:#f2f2f2;
-      --muted:#a3a3a3;
-      --faint:#777;
-      --border:#3a3a3a;
-      --border-hot:#43c9c8;
-      --code:#141414;
-      --chip:#2a2a2a;
-      --table-bg:#191b1d;
-      --table-bg-2:#202326;
-      --table-head:#272a2d;
-      --table-border:#3f454b;
-      --table-ink:#f2f4f5;
-      --table-muted:#a9b0b6;
-      --table-code:#111315;
-      --green:#43c9c8;
-      --steel:#43c9c8;
-      --orange:#ff8733;
-      --amber:#ffd24a;
-      --red:#ff4057;
-      --radius:3px;
-      --shadow:none;
+      --bg:#050806;
+      --bg-grid:rgba(34,197,94,.055);
+      --panel:#0b100d;
+      --panel-2:#0f1713;
+      --ink:#d8f8df;
+      --muted:#7f9b89;
+      --faint:#506357;
+      --border:#1b3325;
+      --border-hot:#2f6f4b;
+      --code:#070b08;
+      --chip:#0d1510;
+      --green:#39ff88;
+      --cyan:#22d3ee;
+      --violet:#d946ef;
+      --amber:#fbbf24;
+      --rose:#fb3d67;
+      --radius:8px;
+      --shadow:0 18px 55px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.035);
       --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
       --sans:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
     }
@@ -40,29 +32,30 @@
     html,body{min-height:100%}
     body{
       margin:0;
-      background:var(--bg);
+      background:
+        linear-gradient(var(--bg-grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--bg-grid) 1px, transparent 1px),
+        linear-gradient(135deg, rgba(34,211,238,.06), transparent 34%, rgba(217,70,239,.045) 72%, transparent),
+        var(--bg);
+      background-size:22px 22px,22px 22px,auto,auto;
       color:var(--ink);
       font-family:var(--sans);
       font-size:14px;
       line-height:1.4;
     }
     body::after{
-      display:none;
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background:linear-gradient(transparent 96%, rgba(57,255,136,.08) 97%);
+      background-size:100% 5px;
+      opacity:.24;
+      mix-blend-mode:screen;
     }
     a{color:inherit}
     button,input,select{font:inherit}
-    .shell{position:relative;z-index:1;min-height:100vh;padding:0;display:grid;gap:0;align-content:start;background:#101010}
-    .contextBar{
-      min-height:36px;display:flex;align-items:center;justify-content:space-between;gap:12px;
-      background:#1f1f1f;border-bottom:1px solid #343434;padding:6px 14px;color:#d7d7d7;font-size:12px
-    }
-    .crumb{display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;white-space:nowrap}
-    .crumb strong{color:#fff;font-weight:700}
-    .timeSelect{
-      display:inline-flex;align-items:center;min-height:24px;padding:3px 9px;border:1px solid #464646;
-      background:#2a2a2a;color:#ececec;border-radius:2px;font-family:var(--mono);font-size:11px
-    }
-    .contextMeta{display:flex;align-items:center;gap:8px;white-space:nowrap;color:var(--muted)}
+    .shell{position:relative;z-index:1;min-height:100vh;padding:16px;display:grid;gap:14px;align-content:start}
     .commandBar{
       display:grid;
       grid-template-columns:minmax(240px,1fr) auto;
@@ -70,90 +63,86 @@
       align-items:center;
       border:1px solid var(--border);
       border-radius:var(--radius);
-      background:var(--panel);
+      background:linear-gradient(180deg,rgba(15,23,19,.96),rgba(7,11,8,.96));
       box-shadow:var(--shadow);
-      padding:10px 12px;
-      margin:14px 14px 12px;
+      padding:14px;
     }
     .brandBlock{display:flex;gap:12px;align-items:center;min-width:0}
     .mark{
-      width:38px;height:34px;border-radius:2px;border:1px solid #4b4b4b;
-      display:grid;place-items:center;font-family:var(--mono);font-size:13px;font-weight:700;color:#f4f4f4;
-      background:#181818;
-      letter-spacing:0;
+      width:38px;height:38px;border-radius:8px;border:1px solid rgba(57,255,136,.42);
+      display:grid;place-items:center;font-family:var(--mono);font-weight:800;color:var(--green);
+      background:linear-gradient(135deg,rgba(57,255,136,.12),rgba(34,211,238,.08));
+      box-shadow:0 0 24px rgba(57,255,136,.16);
     }
     .brandText{min-width:0}
     .titleLine{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    h1{margin:0;font-size:17px;font-weight:700;letter-spacing:0;color:#f4f4f4}
+    h1{margin:0;font-size:19px;font-weight:800;letter-spacing:0;color:#f0fff3}
     .version,.modeBadge,.timeBadge{
-      display:inline-flex;align-items:center;min-height:22px;padding:2px 7px;border-radius:4px;
-      border:1px solid #474747;background:#181818;font-family:var(--mono);font-size:12px;color:var(--muted)
+      display:inline-flex;align-items:center;min-height:24px;padding:3px 8px;border-radius:999px;
+      border:1px solid var(--border);background:var(--chip);font-size:12px;color:var(--muted)
     }
-    .modeBadge.safe{color:var(--green);border-color:rgba(67,201,200,.52)}
+    .modeBadge.safe{color:var(--cyan);border-color:rgba(34,211,238,.38)}
     .modeBadge.raw{color:var(--amber);border-color:rgba(251,191,36,.42)}
     .byline{margin-top:3px;color:var(--muted);font-size:12px}
     .byline a{color:var(--green);text-decoration:none}
     .byline a:hover{text-decoration:underline}
-    .metricGrid{display:grid;grid-template-columns:repeat(5,minmax(82px,1fr));gap:6px;min-width:520px}
+    .metricGrid{display:grid;grid-template-columns:repeat(5,minmax(82px,1fr));gap:8px;min-width:520px}
     .metric{
-      border:1px solid #404040;border-left:3px solid var(--green);border-radius:2px;padding:8px 10px;background:#2a2a2a;
-      box-shadow:none;min-height:58px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px
+      border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;background:rgba(13,21,16,.82);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.03);min-height:54px
     }
-    .metric span{display:block;color:#d0d0d0;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
-    .metric strong{display:block;font-family:var(--mono);font-size:28px;line-height:1;font-weight:700;color:#fff;text-align:right}
-    .metric.critical{border-left-color:var(--red)}
-    .metric.high{border-left-color:var(--orange)}
-    .metric.medium{border-left-color:var(--amber)}
-    .metric.low{border-left-color:var(--steel)}
-    .metric.critical strong{color:var(--red)}
-    .metric.high strong{color:var(--orange)}
+    .metric span{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+    .metric strong{display:block;margin-top:2px;font-family:var(--mono);font-size:20px;color:#f3fff5}
+    .metric.critical{border-color:rgba(251,61,103,.46)}
+    .metric.critical strong{color:var(--rose)}
+    .metric.high strong{color:var(--violet)}
     .metric.medium strong{color:var(--amber)}
-    .metric.low strong{color:var(--steel)}
-    .mainGrid{display:grid;grid-template-columns:270px minmax(0,1fr);gap:14px;align-items:start;padding:0 14px 14px}
+    .metric.low strong{color:var(--cyan)}
+    .mainGrid{display:grid;grid-template-columns:270px minmax(0,1fr);gap:14px;align-items:start}
     .sidebar,.workbench{
       border:1px solid var(--border);border-radius:var(--radius);
-      background:var(--panel);
+      background:linear-gradient(180deg,rgba(15,23,19,.94),rgba(8,12,9,.94));
       box-shadow:var(--shadow);
     }
     .sidebar{position:sticky;top:14px;padding:12px;display:grid;gap:14px}
     .filterSection{display:grid;gap:8px}
     .sectionLabel{
-      color:#cfcfcf;font-size:11px;text-transform:uppercase;letter-spacing:.08em;
+      color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.12em;
       display:flex;align-items:center;justify-content:space-between
     }
     .chipGroup{display:flex;flex-wrap:wrap;gap:7px;max-height:150px;overflow:auto;padding-right:2px}
     .chipBtn,.btn,.iconBtn{
-      border:1px solid var(--border);border-radius:4px;background:var(--chip);color:var(--ink);
-      min-height:31px;padding:6px 9px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;
-      text-decoration:none;white-space:nowrap;box-shadow:none
+      border:1px solid var(--border);border-radius:var(--radius);background:var(--chip);color:var(--ink);
+      min-height:32px;padding:7px 10px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;
+      text-decoration:none;white-space:nowrap;box-shadow:inset 0 1px 0 rgba(255,255,255,.035)
     }
     .chipBtn{font-size:12px;max-width:100%}
     .chipBtn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .chipBtn.active{border-color:var(--border-hot);background:#263c3c;box-shadow:inset 3px 0 0 rgba(67,201,200,.85)}
-    .chipBtn[data-severity="Critical"].active{border-color:rgba(239,38,38,.62);color:#ffd7d7;box-shadow:inset 3px 0 0 rgba(239,38,38,.72)}
-    .chipBtn[data-severity="High"].active{border-color:rgba(249,115,22,.58);color:#ffe0c2;box-shadow:inset 3px 0 0 rgba(249,115,22,.72)}
-    .chipBtn[data-severity="Medium"].active{border-color:rgba(214,162,31,.58);color:#f6e4a6;box-shadow:inset 3px 0 0 rgba(214,162,31,.72)}
-    .chipBtn[data-severity="Low"].active{border-color:rgba(56,189,248,.50);color:#d3edff;box-shadow:inset 3px 0 0 rgba(56,189,248,.66)}
-    .btn:hover,.iconBtn:hover,.chipBtn:hover{border-color:var(--border-hot);background:#303030}
+    .chipBtn.active{border-color:var(--border-hot);box-shadow:0 0 0 1px rgba(57,255,136,.12),0 0 18px rgba(57,255,136,.10)}
+    .chipBtn[data-severity="Critical"].active{border-color:rgba(251,61,103,.62);color:#ffe4ea;box-shadow:0 0 18px rgba(251,61,103,.16)}
+    .chipBtn[data-severity="High"].active{border-color:rgba(217,70,239,.56);color:#fde6ff;box-shadow:0 0 18px rgba(217,70,239,.14)}
+    .chipBtn[data-severity="Medium"].active{border-color:rgba(251,191,36,.56);color:#fff4cf;box-shadow:0 0 18px rgba(251,191,36,.12)}
+    .chipBtn[data-severity="Low"].active{border-color:rgba(34,211,238,.56);color:#d8fbff;box-shadow:0 0 18px rgba(34,211,238,.12)}
+    .btn:hover,.iconBtn:hover,.chipBtn:hover{border-color:var(--green)}
     .field{display:grid;gap:6px}
     .field input,.searchBox,select{
-      width:100%;border:1px solid var(--border);border-radius:4px;
+      width:100%;border:1px solid var(--border);border-radius:var(--radius);
       background:var(--code);color:var(--ink);min-height:34px;padding:8px 10px;outline:none
     }
-    .field input:focus,.searchBox:focus,select:focus{border-color:var(--green);box-shadow:inset 0 -2px 0 rgba(67,201,200,.8)}
+    .field input:focus,.searchBox:focus,select:focus{border-color:var(--green);box-shadow:0 0 0 2px rgba(57,255,136,.12)}
     .rangeRow{display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center}
     input[type="range"]{accent-color:var(--green)}
     .scoreReadout{font-family:var(--mono);color:var(--green);text-align:right}
-    .workbench{padding:12px;min-width:0;background:#202020}
+    .workbench{padding:12px;min-width:0}
     .toolbar{display:grid;grid-template-columns:minmax(260px,1fr) auto;gap:10px;align-items:center;margin-bottom:10px}
     .toolbarActions{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
-    .selectWrap{display:inline-flex;align-items:center;gap:8px;color:#d0d0d0;font-size:12px}
+    .selectWrap{display:inline-flex;align-items:center;gap:8px;color:var(--muted);font-size:12px}
     .selectWrap select{width:auto;min-height:32px;padding:6px 26px 6px 8px}
     .tableFrame{
-      border:1px solid var(--table-border);border-radius:var(--radius);overflow:auto;
-      background:var(--table-bg);max-height:calc(100vh - 215px);min-height:420px
+      border:1px solid var(--border);border-radius:var(--radius);overflow:auto;
+      background:rgba(5,8,6,.74);max-height:calc(100vh - 215px);min-height:420px
     }
-    table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:13px;color:var(--table-ink)}
+    table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:13px}
     col.sev{width:112px}
     col.file{width:31%}
     col.rule{width:190px}
@@ -162,8 +151,8 @@
     col.line{width:72px}
     col.context{width:30%}
     thead th{
-      position:sticky;top:0;z-index:2;background:var(--table-head);color:#d7dde3;
-      border-bottom:1px solid var(--table-border);padding:9px 8px;text-align:left;font-size:11px;
+      position:sticky;top:0;z-index:2;background:#0d1510;color:#b9d9c1;
+      border-bottom:1px solid var(--border);padding:9px 8px;text-align:left;font-size:11px;
       text-transform:uppercase;letter-spacing:.08em
     }
     .sortButton{
@@ -171,44 +160,41 @@
       text-transform:inherit;letter-spacing:inherit;font-size:inherit
     }
     tbody tr.resultRow{cursor:pointer}
-    tbody tr.resultRow:hover{background:rgba(148,163,184,.075)}
-    tbody td{border-bottom:1px solid var(--table-border);padding:8px 8px;vertical-align:middle}
+    tbody tr.resultRow:hover{background:rgba(57,255,136,.045)}
+    tbody td{border-bottom:1px solid rgba(27,51,37,.82);padding:9px 8px;vertical-align:middle}
     .detailRow[hidden]{display:none}
-    .detailCell{padding:0 8px 10px 120px;background:#14181c}
+    .detailCell{padding:0 8px 10px 120px;background:rgba(57,255,136,.025)}
     .detailPanel{
-      border:1px solid var(--table-border);border-radius:var(--radius);padding:10px;
-      background:#101317;display:grid;gap:8px
+      border:1px solid var(--border);border-radius:var(--radius);padding:10px;
+      background:rgba(7,11,8,.82);display:grid;gap:8px
     }
     .detailGrid{display:grid;grid-template-columns:90px minmax(0,1fr);gap:7px 12px;font-size:12px}
-    .detailGrid dt{color:var(--table-muted);margin:0;text-transform:uppercase;letter-spacing:.08em}
+    .detailGrid dt{color:var(--muted);margin:0;text-transform:uppercase;letter-spacing:.08em}
     .detailGrid dd{margin:0;min-width:0;word-break:break-word}
     .mono{font-family:var(--mono)}
     .severityBadge,.rulePill{
-      display:inline-flex;align-items:center;max-width:100%;border-radius:3px;border:1px solid var(--table-border);
+      display:inline-flex;align-items:center;max-width:100%;border-radius:999px;border:1px solid var(--border);
       padding:3px 8px;font-size:12px;line-height:1.2
     }
     .severityBadge{font-family:var(--mono)}
-    .sev-Critical .severityBadge{border-color:rgba(239,38,38,.72);color:#ffdada;background:rgba(239,38,38,.045)}
-    .sev-High .severityBadge{border-color:rgba(249,115,22,.66);color:#ffdfc2}
-    .sev-Medium .severityBadge{border-color:rgba(214,162,31,.66);color:#f6e4a6}
-    .sev-Low .severityBadge{border-color:rgba(56,189,248,.58);color:#d2edff}
-    .fileName{font-family:var(--mono);font-weight:700;color:#f3f4f6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    .filePath{font-family:var(--mono);font-size:11px;color:var(--table-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
-    .rulePill{font-family:var(--mono);font-size:11px;color:#e5e7eb;background:#171b20;border-color:#444c55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .sev-Critical .severityBadge{border-color:rgba(251,61,103,.68);color:#ffe8ed;box-shadow:0 0 16px rgba(251,61,103,.16)}
+    .sev-High .severityBadge{border-color:rgba(217,70,239,.62);color:#fee6ff}
+    .sev-Medium .severityBadge{border-color:rgba(251,191,36,.62);color:#fff3c4}
+    .sev-Low .severityBadge{border-color:rgba(34,211,238,.62);color:#d9fbff}
+    .fileName{font-family:var(--mono);font-weight:700;color:#f0fff3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .filePath{font-family:var(--mono);font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+    .rulePill{font-family:var(--mono);font-size:11px;color:#dfffe7;background:rgba(57,255,136,.045);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .scoreCell{display:grid;gap:4px}
     .scoreTop{display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:var(--mono)}
-    .scoreRail{height:5px;border-radius:2px;background:#20252a;overflow:hidden;border:1px solid #3a424a}
-    .scoreRail span{display:block;height:100%;width:0;background:var(--green);border-radius:1px}
-    .sev-Critical .scoreRail span{background:var(--red)}
-    .sev-High .scoreRail span{background:var(--orange)}
-    .sev-Medium .scoreRail span{background:var(--amber)}
-    .sev-Low .scoreRail span{background:var(--steel)}
+    .scoreRail{height:6px;border-radius:999px;background:#162019;overflow:hidden;border:1px solid rgba(57,255,136,.12)}
+    .scoreRail span{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--green),var(--cyan));border-radius:999px}
+    .sev-Critical .scoreRail span{background:linear-gradient(90deg,var(--rose),var(--violet))}
     code.val,code.ctx{
       display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-      font-family:var(--mono);background:var(--table-code);border:1px solid #313840;
-      border-radius:3px;padding:4px 6px;color:#f1f5f9
+      font-family:var(--mono);background:rgba(0,0,0,.24);border:1px solid rgba(27,51,37,.55);
+      border-radius:6px;padding:4px 6px;color:#eaffed
     }
-    .lineNo{font-family:var(--mono);color:var(--table-muted)}
+    .lineNo{font-family:var(--mono);color:var(--muted)}
     .rowTools{display:flex;gap:6px;margin-top:6px;opacity:0;transition:opacity .12s}
     tr:hover .rowTools{opacity:1}
     .iconBtn{min-height:26px;padding:4px 7px;font-size:11px}
@@ -218,12 +204,11 @@
     .toast{
       position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
       border:1px solid var(--border-hot);border-radius:var(--radius);background:#08100b;color:var(--ink);
-      padding:9px 12px;font-size:12px;box-shadow:0 8px 18px rgba(0,0,0,.24);opacity:0;pointer-events:none;transition:opacity .18s;z-index:9
+      padding:9px 12px;font-size:12px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:opacity .18s;z-index:9
     }
     .toast.show{opacity:1}
     .safe-report .rawOnly{display:none}
     @media (max-width:1100px){
-      .contextBar{align-items:flex-start;flex-direction:column}
       .commandBar{grid-template-columns:1fr}
       .metricGrid{min-width:0;grid-template-columns:repeat(5,minmax(0,1fr))}
       .mainGrid{grid-template-columns:1fr}
@@ -233,30 +218,12 @@
       .toolbarActions{justify-content:flex-start}
     }
     @media (max-width:720px){
-      .shell{padding:0}
-      .commandBar{margin:10px}
-      .mainGrid{padding:0 10px 10px}
+      .shell{padding:10px}
       .metricGrid{grid-template-columns:repeat(2,minmax(0,1fr))}
       .metric:first-child{grid-column:1/-1}
-      .metric{grid-template-columns:1fr;align-items:start;min-height:64px}
-      .metric strong{text-align:left;font-size:24px;margin-top:4px}
-      .brandBlock{display:grid;grid-template-columns:38px minmax(0,1fr);align-items:flex-start}
-      .titleLine{display:grid;grid-template-columns:1fr;justify-items:start;align-items:flex-start}
-      .byline{display:flex;flex-wrap:wrap;gap:6px}
-      .contextBar{padding:8px 10px}
-      .crumb{white-space:normal;flex-wrap:wrap}
-      .toolbarActions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
-      .toolbarActions .btn,.toolbarActions .selectWrap{width:100%;justify-content:center}
-      .selectWrap select{min-width:0;width:100%}
       col.file{width:260px}
       col.context{width:260px}
-      .commandBar,.sidebar,.workbench{border-radius:5px}
-    }
-    @media (max-width:460px){
-      body{overflow-x:hidden}
-      h1{font-size:18px}
-      .version,.modeBadge,.timeBadge{font-size:11px}
-      .toolbarActions{grid-template-columns:1fr}
+      .commandBar,.sidebar,.workbench{border-radius:8px}
     }
     @media print{
       body{background:#fff;color:#000}
@@ -268,39 +235,26 @@
     }
   </style>
 </head>
-<body{% if safe_report %} class="safe-report"{% endif %}>
+<body>
   <div class="shell">
-    <div class="contextBar">
-      <div class="crumb">
-        <span class="timeSelect">Last scan</span>
-        <span>Security</span>
-        <span>/</span>
-        <strong>Credential Detections</strong>
-      </div>
-      <div class="contextMeta">
-        <span>{{ generated_at }}</span>
-        <span>{{ shown_count }} / {{ total_count }}</span>
-      </div>
-    </div>
-
     <header class="commandBar">
       <div class="brandBlock">
         <div class="mark">CA</div>
         <div class="brandText">
           <div class="titleLine">
             <h1>CredAudit Report</h1>
-            <span class="version">v{{ version }}</span>
-            {% if safe_report %}<span class="modeBadge safe">safe/redacted</span>{% else %}<span class="modeBadge raw">raw enabled</span>{% endif %}
+            <span class="version">v0.6.0</span>
+            <span class="modeBadge raw">raw enabled</span>
           </div>
-          <div class="byline">by <a href="{{ author_url }}" target="_blank" rel="noopener">{{ author_name }}</a></div>
+          <div class="byline">by <a href="https://github.com/azizinfosec-art/CredAudit" target="_blank" rel="noopener">azizinfosec-art</a> <span class="timeBadge">2026-08-14 01:13:30</span></div>
         </div>
       </div>
       <div class="metricGrid" aria-label="Finding summary">
-        <div class="metric"><span>Total</span><strong>{{ total_count }}</strong></div>
-        <div class="metric critical"><span>Critical</span><strong>{{ counts.Critical }}</strong></div>
-        <div class="metric high"><span>High</span><strong>{{ counts.High }}</strong></div>
-        <div class="metric medium"><span>Medium</span><strong>{{ counts.Medium }}</strong></div>
-        <div class="metric low"><span>Low</span><strong>{{ counts.Low }}</strong></div>
+        <div class="metric"><span>Total</span><strong>6</strong></div>
+        <div class="metric critical"><span>Critical</span><strong>2</strong></div>
+        <div class="metric high"><span>High</span><strong>1</strong></div>
+        <div class="metric medium"><span>Medium</span><strong>3</strong></div>
+        <div class="metric low"><span>Low</span><strong>0</strong></div>
       </div>
     </header>
 
@@ -349,17 +303,15 @@
                 <option value="500" selected>500</option>
               </select>
             </label>
-            {% if not safe_report %}<button class="btn rawOnly" id="toggleRaw" type="button">Show Raw</button>{% endif %}
+            <button class="btn rawOnly" id="toggleRaw" type="button">Show Raw</button>
             <button class="btn" id="clear" type="button">Reset</button>
-            <a class="btn" href="{{ json_name }}" download>JSON</a>
-            <a class="btn" href="{{ csv_name }}" download>CSV</a>
+            <a class="btn" href="report.json" download>JSON</a>
+            <a class="btn" href="report.csv" download>CSV</a>
             <button class="btn" id="exportFiltered" type="button">Export Filtered</button>
           </div>
         </div>
 
-        {% if truncated %}
-        <div class="statusLine" style="margin-bottom:8px">Showing {{ shown_count }} of {{ total_count }} findings in this HTML file.</div>
-        {% endif %}
+        
 
         <div class="tableFrame">
           <table id="tbl">
@@ -397,9 +349,9 @@
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script>
-  const DATA = {{ data_json|safe }};
-  const BASE_NAME = {{ base_name_js }};
-  const SAFE_REPORT = {{ safe_report_js }};
+  const DATA = [{"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt", "rule": "PasswordValueAssignment", "match": "Secret123!", "redacted": "Se****3!", "context": "password: Secret123!", "severity": "Critical", "line": 1, "confidence": 99, "finding_class": "likely", "validity": "not_applicable", "evidence": ["password keyword with explicit assignment", "value appears after a password/pass/pwd keyword", "context uses an assignment separator", "value has password-like complexity", "source file type commonly stores configuration or credentials"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt", "rule": "CredentialPair", "match": "Root123!", "redacted": "R****!", "context": "admin:Root123!", "severity": "High", "line": 2, "confidence": 89, "finding_class": "likely", "validity": "not_applicable", "evidence": ["compact same-line username:password format", "line has no whitespace around the credential separator", "left side is username-like", "right side has password-like complexity", "source file is plain text", "source file is 5 MB or smaller", "filename suggests credential material", "file contains multiple credential-pair lines"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt", "rule": "CredentialPair", "match": "base64", "redacted": "b****4", "context": "Content-Transfer-Encoding: base64", "severity": "Medium", "line": 3, "confidence": 69, "finding_class": "possible", "validity": "not_applicable", "evidence": ["compact same-line username:password format", "line has no whitespace around the credential separator", "left side looks like an HTTP/MIME metadata label, not a username", "source file is plain text", "source file is 5 MB or smaller", "filename suggests credential material", "file contains multiple credential-pair lines"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\client-creds.txt", "rule": "PasswordCandidate", "match": "mISX%%13402", "redacted": "mI****02", "context": "mISX%%13402", "severity": "Medium", "line": 4, "confidence": 58, "finding_class": "possible", "validity": "not_applicable", "evidence": ["standalone token has password-like shape", "token contains letters, digits, and complexity markers", "source file is plain text"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\service.env", "rule": "APIKeyGeneric", "match": "sk-abcde1234567890", "redacted": "sk-a****7890", "context": "api_key=sk-abcde1234567890", "severity": "Medium", "line": 1, "confidence": 70, "finding_class": "possible", "validity": "not_applicable", "evidence": ["generic API key prefix pattern"]}, {"file": "C:\\Users\\Dell\\Documents\\GitHub\\CredAudit\\work\\html-demo\\service.env", "rule": "PasswordValueAssignment", "match": "Backup456!", "redacted": "Ba****6!", "context": "password=Backup456!", "severity": "Critical", "line": 2, "confidence": 99, "finding_class": "likely", "validity": "not_applicable", "evidence": ["password keyword with explicit assignment", "value appears after a password/pass/pwd keyword", "context uses an assignment separator", "value has password-like complexity", "source file type commonly stores configuration or credentials"]}];
+  const BASE_NAME = "report";
+  const SAFE_REPORT = false;
   (function(){
     const tbody = document.querySelector('#tbl tbody');
     const q = document.getElementById('q');

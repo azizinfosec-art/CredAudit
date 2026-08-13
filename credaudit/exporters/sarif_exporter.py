@@ -1,7 +1,7 @@
 import json, os
 from .. import __version__ as _VERSION
 
-LEVEL_MAP={"High":"error","Medium":"warning","Low":"note"}
+LEVEL_MAP={"Critical":"error","High":"error","Medium":"warning","Low":"note"}
 
 def export_sarif(findings, p):
     runs=[{"tool":{"driver":{"name":"CredAudit","version":_VERSION}},"results":[]}]

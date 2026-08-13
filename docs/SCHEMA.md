@@ -15,7 +15,7 @@ Contents:
   - `ts` (string): ISO8601 UTC timestamp when the record was written.
   - `file` (string): file path or virtual ID (`archive.zip!path/inside` or `URL#response`).
   - `rule` (string): rule name (e.g., `PasswordAssignment`).
-  - `severity` (string): one of `Low`, `Medium`, `High`.
+  - `severity` (string): one of `Low`, `Medium`, `High`, `Critical`.
   - `confidence` (number): evidence score from `0` to `100`.
   - `finding_class` (string): `confirmed_format`, `likely`, `possible`, or `indicator`.
   - `validity` (string): `not_applicable`, `unknown`, or a future verifier status.
@@ -27,7 +27,7 @@ Contents:
 
 Example line:
 ```
-{"ts":"2026-08-13T07:45:12+00:00","file":"C:/repo/.env","rule":"PasswordAssignment","severity":"Medium","confidence":92,"finding_class":"likely","validity":"not_applicable","evidence":["password-like keyword with explicit assignment"],"redacted":"A****4","context":"password: A****4","line":3}
+{"ts":"2026-08-13T07:45:12+00:00","file":"C:/repo/.env","rule":"PasswordValueAssignment","severity":"Critical","confidence":99,"finding_class":"likely","validity":"not_applicable","evidence":["password keyword with explicit assignment"],"redacted":"A****4","context":"password: A****4","line":3}
 ```
 
 ## JSON (final report)
@@ -39,7 +39,7 @@ Example line:
   - `match` (string): raw value in raw mode, redacted value in safe mode
   - `redacted` (string)
   - `context` (string)
-  - `severity` (string): `Low` | `Medium` | `High`
+  - `severity` (string): `Low` | `Medium` | `High` | `Critical`
   - `confidence` (number): evidence score from `0` to `100`
   - `finding_class` (string): `confirmed_format` | `likely` | `possible` | `indicator`
   - `validity` (string): `not_applicable` | `unknown` | future verifier status
@@ -51,15 +51,15 @@ Example (trimmed):
 [
   {
     "file":"C:/repo/.env",
-    "rule":"PasswordAssignment",
+    "rule":"PasswordValueAssignment",
     "match":"A****4",
     "redacted":"A****4",
     "context":"password: A****4",
-    "severity":"Medium",
-    "confidence":92,
+    "severity":"Critical",
+    "confidence":99,
     "finding_class":"likely",
     "validity":"not_applicable",
-    "evidence":["password-like keyword with explicit assignment"],
+    "evidence":["password keyword with explicit assignment"],
     "line":3
   }
 ]
@@ -87,13 +87,13 @@ Notes:
       "results": [
         {
           "ruleId": "<rule>",
-          "level": "error|warning|note",   // High=error, Medium=warning, Low=note
+          "level": "error|warning|note",   // Critical/High=error, Medium=warning, Low=note
           "message": { "text": "<redacted>" },
           "properties": {
-            "confidence": 92,
+            "confidence": 99,
             "finding_class": "likely",
             "validity": "not_applicable",
-            "evidence": ["password-like keyword with explicit assignment"]
+            "evidence": ["password keyword with explicit assignment"]
           },
           "locations": [ {
             "physicalLocation": {

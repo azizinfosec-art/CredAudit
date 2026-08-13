@@ -23,6 +23,7 @@ def _color_severity(value, severity=None):
         return text
     sev = str(severity or text).strip()
     colors = {
+        'Critical': '35',
         'Low': '34',
         'Medium': '38;5;208',
         'High': '31',
@@ -63,7 +64,7 @@ def print_console_findings(findings, limit=50, show_evidence=False):
                 print(f"  Evidence: {_shorten('; '.join(str(x) for x in evidence), 140)}")
     if len(safe) > len(shown):
         print(f"... showing {len(shown)} of {len(safe)} findings. Use --console-limit to show more.")
-    print("Use --formats html csv json to save reports.")
+    print("Use --formats html csv json to save final reports.")
 
 def _file_url(path):
     try:
@@ -108,6 +109,17 @@ def print_report_links(output_dir, formats, timestamp, started_at=None):
     for label, url in links:
         print(f"  {label}: {url}")
 
+def _default_ndjson_path(output_dir, timestamp=False, wall_started_at=None):
+    out_dir = os.path.abspath(output_dir)
+    if timestamp:
+        ts = time.strftime('%Y%m%d_%H%M%S', time.localtime(wall_started_at or time.time()))
+        return os.path.join(out_dir, f'findings_{ts}.ndjson')
+    return os.path.join(out_dir, 'findings.ndjson')
+
+def print_ndjson_link(path):
+    if path:
+        print(f"NDJSON: {_file_url(path)}")
+
 FAST_EXCLUDE_GLOBS = [
     "**/.git/**",
     "**/__pycache__/**",
@@ -122,6 +134,39 @@ FAST_EXCLUDE_GLOBS = [
     "**/.mypy_cache/**",
     "**/credaudit_out/**",
 ]
+
+PASSWORD_INTENT_COMMANDS = {"password", "passwords", "cred", "creds", "credentials"}
+PASSWORD_INTENT_RULES = [
+    "CredentialPair",
+    "PasswordValueAssignment",
+    "PasswordValueAssignmentLoose",
+    "UsernameNearPassword",
+    "PasswordCandidate",
+]
+
+def _has_cli_option(argv, names):
+    for arg in argv:
+        for name in names:
+            if arg == name or arg.startswith(name + "="):
+                return True
+    return False
+
+def _expand_password_intent(argv):
+    if not argv or argv[0] not in PASSWORD_INTENT_COMMANDS:
+        return argv, None
+    rest = list(argv[1:])
+    if rest and rest[0] in ("-h", "--help"):
+        return ["scan", "--help"], "passwords"
+    defaults = []
+    if not _has_cli_option(rest, ["--include-ext", "--include-glob", "--full", "--standard"]):
+        defaults.extend(["--include-ext", ".txt"])
+    if not _has_cli_option(rest, ["--max-size", "--max-size-kb"]):
+        defaults.extend(["--max-size", "5"])
+    if not _has_cli_option(rest, ["--only-rules"]):
+        defaults.extend(["--only-rules", *PASSWORD_INTENT_RULES])
+    if not _has_cli_option(rest, ["--min-confidence", "--high-confidence"]):
+        defaults.extend(["--min-confidence", "50"])
+    return ["scan", *rest, *defaults], "passwords"
 
 def print_banner(when: str = 'default', verbose: bool = False):
     # Only print banner in interactive terminals
@@ -166,17 +211,18 @@ Commands:
   validate               Check config.yaml and show enabled parsers
   rules                  Show all built-in detection rules
   scan                   Run a scan on files/folders
+  passwords              Find password-like values in small .txt files
 Scan Options:
   -p, --path PATH        File or folder to scan
   -o, --output-dir DIR   Output directory (default: ./credaudit_out)
-  --formats FMT [...]    Report formats: json, csv, html, sarif
+  --formats FMT [...]    Final report formats: json, csv, html, sarif
   --safe                 Redacted reports and no raw-secret cache writes (default)
   --raw                  Allow raw findings in reports/cache for internal remediation
   --list                 Dry-run: only list files to be scanned
   --timestamp            Append timestamp to report filenames (default with --formats)
   --no-timestamp         Use fixed report filenames such as report.html
-  --fail-on LEVEL        Exit non-zero if findings ≥ LEVEL
-                         (choices: Low, Medium, High)
+  --fail-on LEVEL        Exit non-zero if findings >= LEVEL
+                         (choices: Low, Medium, High, Critical)
 File Filtering:
   --include-ext EXT [...]    Only scan these extensions (.txt .json .env ...)
   --include-glob PATTERN [...] Include files matching glob(s)
@@ -210,13 +256,15 @@ HAR Options:
                          What bodies to scan inside .har (default: both)
   --har-max-body-bytes N  Max size per HAR body in bytes (default: 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)
 NDJSON Options:
-  --ndjson-out PATH       Append findings to NDJSON during scan (append-only)
-  --ndjson-truncate       Truncate NDJSON file before writing
+  --ndjson-out PATH       Stream findings to NDJSON during scan
+                          (default: ./credaudit_out/findings.ndjson)
+  --no-ndjson             Disable the default NDJSON stream
+  --ndjson-truncate       Truncate explicit NDJSON file before writing
   --ndjson-flush-sec SEC  Flush NDJSON at least every SEC seconds (default: 1.0)
   --ndjson-buffer N       Flush NDJSON after N findings (default: 100)
   --ndjson-include-raw    Include raw matched values (redacted-only by default)
 Timeouts:
-  --per-file-timeout SEC  Kill and skip a file if scanning exceeds SEC seconds (default: 120; 0=disable)
+  --per-file-timeout SEC  Kill and skip a file if scanning exceeds SEC seconds (default: 2; 0=disable)
 User Experience:
   Spinner shown in TTY (suppressed with --verbose). End-of-run summary includes elapsed time.
 Examples:
@@ -226,6 +274,8 @@ Examples:
       List all built-in detection rules
   credaudit scan -p ./secrets --formats html json
       Scan a folder and save timestamped HTML+JSON reports
+  credaudit passwords ./client-data
+      Find password-like entries in .txt files up to 5 MB with balanced confidence
   credaudit scan -p ./app/config.env --include-ext .env --fail-on High
       Scan a single .env file and exit non-zero if High severity secrets found
   credaudit scan -p ./ --no-cache --formats sarif -o ./reports
@@ -284,7 +334,7 @@ def parse_common_args(p: argparse.ArgumentParser):
                    help='Append timestamp to report filenames (default when --formats is used)')
     p.add_argument('--no-timestamp', dest='timestamp', action='store_false',
                    help='Use fixed report filenames such as report.html')
-    p.add_argument('--fail-on', choices=['Low','Medium','High'], help='Exit non-zero if any finding >= threshold')
+    p.add_argument('--fail-on', choices=['Low','Medium','High','Critical'], help='Exit non-zero if any finding >= threshold')
     p.add_argument('--config', default=DEFAULT_CONFIG_PATH, help='Path to config.yaml')
     p.add_argument('--entropy-min-length', type=int, dest='entropy_min_length', help='Entropy min token length')
     p.add_argument('--entropy-threshold', type=float, dest='entropy_threshold', help='Entropy threshold')
@@ -303,14 +353,15 @@ def parse_common_args(p: argparse.ArgumentParser):
                    default=None,
                    help='Maximum size of a single HAR body to scan in bytes (default: 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)')
     # NDJSON live output
-    p.add_argument('--ndjson-out', dest='ndjson_out', help='Append findings to NDJSON file (append-only)')
-    p.add_argument('--ndjson-truncate', action='store_true', help='Truncate NDJSON output file before writing')
+    p.add_argument('--ndjson-out', dest='ndjson_out', help='Stream findings to NDJSON file (default: output-dir/findings.ndjson)')
+    p.add_argument('--no-ndjson', action='store_true', help='Disable the default NDJSON stream')
+    p.add_argument('--ndjson-truncate', action='store_true', help='Truncate explicit NDJSON output file before writing')
     p.add_argument('--ndjson-flush-sec', type=float, help='Flush NDJSON at least every SEC seconds (default: 1.0)')
     p.add_argument('--ndjson-buffer', type=int, help='Flush NDJSON after N findings (default: 100)')
     p.add_argument('--ndjson-include-raw', action='store_true', help='Include raw matched values in NDJSON (redacted only by default)')
     # Timeouts
     p.add_argument('--per-file-timeout', type=float, default=None,
-                   help='Kill and skip a file if scanning exceeds SEC seconds (default: 120; fast mode: 2; 0 disables)')
+                   help='Kill and skip a file if scanning exceeds SEC seconds (default: 2; 0 disables)')
     return p
 def main(argv=None)->int:
     argv = argv or sys.argv[1:]
@@ -318,6 +369,7 @@ def main(argv=None)->int:
     if any(a in ('-V','--version') for a in argv):
         print(f"CredAudit v{_VERSION}")
         return 0
+    argv, intent_name = _expand_password_intent(argv)
     known_commands = {'scan', 'rules', 'validate', 'convert'}
     if argv and argv[0] not in known_commands and argv[0] not in ('-h', '--help'):
         argv = ['scan'] + argv
@@ -325,6 +377,9 @@ def main(argv=None)->int:
         prog='credaudit',
         description='CredAudit secret scanner',
         epilog=(
+            'Intent shortcuts:\n'
+            '  credaudit passwords PATH   Find password-like entries in .txt files up to 5 MB\n'
+            '\n'
             'Environment:\n'
             '  CREDAUDIT_HTML_MAX_ROWS   Limit rows rendered in HTML report (default: 500)\n'
             '\n'
@@ -432,6 +487,8 @@ def main(argv=None)->int:
             min_confidence = max(80, int(min_confidence or 0))
         if min_confidence is not None and not (0 <= int(min_confidence) <= 100):
             parser.error("--min-confidence must be between 0 and 100")
+        if getattr(args, 'no_ndjson', False) and getattr(args, 'ndjson_out', None):
+            parser.error("--no-ndjson cannot be used with --ndjson-out")
         ignore_globs = load_ignore_file(args.ignore_file) if args.ignore_file else []
         target_path = args.path or args.target or '.'
         target_is_file = os.path.isfile(target_path)
@@ -459,7 +516,7 @@ def main(argv=None)->int:
             max_size_bytes = None
         per_file_timeout = args.per_file_timeout
         if per_file_timeout is None:
-            per_file_timeout = 2.0 if args.fast else 120.0
+            per_file_timeout = 2.0
         scan_workers = cfg.workers
         if args.fast and args.workers is None:
             scan_workers = min(4, os.cpu_count() or 2)
@@ -472,7 +529,14 @@ def main(argv=None)->int:
         if args.list:
             for f in files: print(f)
             return 0
+        wall_started_at = time.time()
         t_start = time.perf_counter()
+        ndjson_out = getattr(args, 'ndjson_out', None)
+        auto_ndjson = False
+        if not getattr(args, 'no_ndjson', False) and not ndjson_out:
+            ndjson_out = _default_ndjson_path(args.output_dir, timestamp_reports, wall_started_at)
+            auto_ndjson = True
+        ndjson_truncate = bool(getattr(args, 'ndjson_truncate', False) or auto_ndjson)
         # Map sensitivity to numeric rule level
         sens_map = {
             None: None,
@@ -489,8 +553,8 @@ def main(argv=None)->int:
                                         har_include=args.har_include,
                                         har_max_body_bytes=args.har_max_body_bytes,
                                         rule_level=rule_level,
-                                        ndjson_out=getattr(args,'ndjson_out',None),
-                                        ndjson_truncate=bool(getattr(args,'ndjson_truncate',False)),
+                                        ndjson_out=ndjson_out,
+                                        ndjson_truncate=ndjson_truncate,
                                         ndjson_flush_sec=getattr(args,'ndjson_flush_sec',None),
                                         ndjson_buffer=getattr(args,'ndjson_buffer',None),
                                         ndjson_include_raw=bool(getattr(args,'ndjson_include_raw',False)),
@@ -512,22 +576,27 @@ def main(argv=None)->int:
         t_end = time.perf_counter()
         elapsed = t_end - t_start
         # Friendly end-of-run summary
-        sev_order = {'Low': 1, 'Medium': 2, 'High': 3}
+        sev_order = {'Low': 1, 'Medium': 2, 'High': 3, 'Critical': 4}
+        cC = sum(1 for f in findings if (f.get('severity') or 'Low') == 'Critical')
         cH = sum(1 for f in findings if (f.get('severity') or 'Low') == 'High')
         cM = sum(1 for f in findings if (f.get('severity') or 'Low') == 'Medium')
         cL = sum(1 for f in findings if (f.get('severity') or 'Low') == 'Low')
         fmts = ','.join(formats)
         sens_txt = {1:'L1/cautious',2:'L2/balanced',3:'L3/aggressive'}.get(rule_level or 2, 'L2/balanced')
         mode_txt = f"{'fast' if args.fast else 'standard'} {'safe/redacted' if getattr(args, 'safe', False) else 'raw'}"
+        if intent_name == "passwords" and args.verbose:
+            print("Intent: passwords | .txt <= 5 MB | rules: " + ", ".join(PASSWORD_INTENT_RULES))
         if console_mode:
             print_console_findings(findings, getattr(args, 'console_limit', 50), bool(getattr(args, 'show_evidence', False)))
-            report_txt = 'console only'
+            report_txt = 'console + ndjson' if ndjson_out else 'console only'
         else:
             report_txt = f"{args.output_dir} (formats: {fmts})"
         conf_txt = f" | Min confidence: {min_confidence}%" if min_confidence is not None else ""
-        print(f"Scanned {len(files)} files | Findings: {len(findings)} (H:{cH} M:{cM} L:{cL}) | Sensitivity: {sens_txt}{conf_txt} | Mode: {mode_txt} | Time: {elapsed:.2f}s | Reports: {report_txt}")
+        print(f"Scanned {len(files)} files | Findings: {len(findings)} (C:{cC} H:{cH} M:{cM} L:{cL}) | Sensitivity: {sens_txt}{conf_txt} | Mode: {mode_txt} | Time: {elapsed:.2f}s | Reports: {report_txt}")
         if not console_mode:
             print_report_links(args.output_dir, formats, timestamp_reports, t_start)
+        if ndjson_out:
+            print_ndjson_link(ndjson_out)
         return code
     else:
         parser.print_help(); return 0
