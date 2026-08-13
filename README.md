@@ -148,6 +148,18 @@ This creates `final_report.html` and/or `final_report.csv`.
 
 ## Common Usage Examples
 
+Scan one text file:
+
+```sh
+credaudit scan -p ./notes.txt --formats html json csv
+```
+
+Scan only `.txt` files in a folder:
+
+```sh
+credaudit scan -p ./client-data --include-ext .txt --formats html json csv
+```
+
 Scan only `.env` and JSON files:
 
 ```sh
