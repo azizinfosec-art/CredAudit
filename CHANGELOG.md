@@ -9,17 +9,29 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Added
 - CLI: simple safe shortcut, `credaudit PATH`, for client-friendly scans.
 - CLI: `--safe` / `--redacted-only` mode for redacted reports and no raw-secret cache writes.
-- CLI: `--fast` mode defaults for the shortcut: `.txt` only, 10 KB max file size, and 5-second per-file timeout.
+- CLI: `--fast` mode defaults for the shortcut: `.txt` only, 10 KB max file size, 2-second per-file timeout, generated-folder skips, and up to 4 workers.
+- CLI: `--full` / `--standard` to opt into the full configured file scope.
+- CLI: `--raw` to opt into raw findings for internal remediation workflows.
 - CLI: console findings table when `--formats` is not provided.
 - CLI: `--console-limit` to control how many findings are shown on screen.
 - CLI: `--max-size-kb` for small-file scan limits.
+- CLI: `credaudit scan PATH` now uses the same fast safe defaults as `credaudit PATH`.
+- Rules: low-severity `UsernameAssignment`, `PasswordKeyword`, and `PasswordCandidate` indicators.
+- Rules: high-severity `UsernameNearPassword` for username-like lines immediately before password findings.
 - Tests: coverage for safe shortcut, fast defaults, and console output.
 
 ### Changed
 - Default client workflow now prints redacted findings to the terminal unless output formats are explicitly selected.
+- Safe/redacted and fast mode are now the default scan behavior; full/raw behavior is explicit.
 - CSV and NDJSON outputs redact matched secrets in context snippets.
 - HTML safe reports hide raw-secret controls.
 - Documentation now includes Windows and Kali Linux setup instructions and simpler client usage examples.
+- Windows interrupt handling is cleaner when a scan is cancelled with Ctrl+C.
+
+### Fixed
+- Duplicate findings from overlapping rules are collapsed by file, line, and secret value while preserving the strongest or most specific rule.
+- Duplicate checks now normalize common trailing syntax punctuation such as commas and semicolons.
+- Redaction now uses a four-star middle mask instead of fully masking short values.
 
 ### Security
 - Safe mode skips cache reads and writes to avoid storing raw findings locally.

@@ -1,5 +1,5 @@
 import os, fnmatch
-REDACTION_MASK = "**********"
+REDACTION_MASK = "****"
 def normalize_exts(exts):
     if not exts: return []
     out=[]
@@ -20,8 +20,11 @@ def match_globs(path, include_globs, exclude_globs):
         return False
     return True
 def redact_secret(s: str) -> str:
-    if len(s) <= 8: return REDACTION_MASK
-    return f"{s[:4]}{REDACTION_MASK}{s[-4:]}"
+    value = str(s or "")
+    if len(value) <= 4: return REDACTION_MASK
+    if len(value) <= 8: return f"{value[:1]}{REDACTION_MASK}{value[-1:]}"
+    if len(value) <= 16: return f"{value[:2]}{REDACTION_MASK}{value[-2:]}"
+    return f"{value[:4]}{REDACTION_MASK}{value[-4:]}"
 def redact_finding_record(record: dict) -> dict:
     out = dict(record) if isinstance(record, dict) else {}
     raw = str(out.get("match", "") or "")

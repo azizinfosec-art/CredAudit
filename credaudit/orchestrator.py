@@ -7,6 +7,12 @@ from .parsers.extract import extract_text_from_file, TEXT_EXTS
 from .detection.scan import scan_text, serialize_findings
 from .cache import ScanCache
 
+def _ignore_worker_keyboard_interrupt():
+    try:
+        import signal
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+    except Exception:
+        pass
 
 def _should_include(path: str, include_exts, include_globs, exclude_globs):
     if include_exts and os.path.splitext(path)[1].lower() not in include_exts:
@@ -328,41 +334,53 @@ def scan_paths(
         total = len(to_scan)
         if show_spinner:
             print(f"Scanning {done}/{total} | Findings: {len(findings_all)} ", end='', flush=True)
-        with ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2) as pp:
+        pp = ProcessPoolExecutor(max_workers=workers or os.cpu_count() or 2, initializer=_ignore_worker_keyboard_interrupt)
+        shutdown_done = False
+        try:
             futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes, rule_level, per_file_timeout, only_rules): p for p in to_scan}
-            for fut in as_completed(futs):
-                p = futs[fut]
-                try:
-                    _, f, st = fut.result()
-                    if st == 'ok':
-                        if f:
-                            if path_alias:
-                                for rec in f:
-                                    fp = rec.get('file')
-                                    if fp in path_alias:
-                                        rec['file'] = path_alias[fp]
-                            findings_all.extend(f)
-                            if nd_writer is not None:
-                                try:
-                                    nd_writer.add_findings(f)
-                                except Exception:
-                                    pass
-                        if cache_enabled and cache:
-                            cache.update(p, f)
-                    elif st in ('timeout', 'error'):
+            try:
+                for fut in as_completed(futs):
+                    p = futs[fut]
+                    try:
+                        _, f, st = fut.result()
+                        if st == 'ok':
+                            if f:
+                                if path_alias:
+                                    for rec in f:
+                                        fp = rec.get('file')
+                                        if fp in path_alias:
+                                            rec['file'] = path_alias[fp]
+                                findings_all.extend(f)
+                                if nd_writer is not None:
+                                    try:
+                                        nd_writer.add_findings(f)
+                                    except Exception:
+                                        pass
+                            if cache_enabled and cache:
+                                cache.update(p, f)
+                        elif st in ('timeout', 'error'):
+                            if verbose:
+                                print(f"[SKIP] {p}: {st}")
+                    except Exception as e:
                         if verbose:
-                            print(f"[SKIP] {p}: {st}")
-                except Exception as e:
-                    if verbose:
-                        print(f"[SKIP] {p}: exception {e}")
-                finally:
-                    done += 1
-                    if show_spinner:
-                        spin = spinner[spin_idx % len(spinner)]; spin_idx += 1
-                        msg = f"\r{spin} Scanning {done}/{total} | Findings: {len(findings_all)} "
-                        # Pad/truncate to avoid leftover chars
-                        sys.stdout.write(msg)
-                        sys.stdout.flush()
+                            print(f"[SKIP] {p}: exception {e}")
+                    finally:
+                        done += 1
+                        if show_spinner:
+                            spin = spinner[spin_idx % len(spinner)]; spin_idx += 1
+                            msg = f"\r{spin} Scanning {done}/{total} | Findings: {len(findings_all)} "
+                            # Pad/truncate to avoid leftover chars
+                            sys.stdout.write(msg)
+                            sys.stdout.flush()
+            except KeyboardInterrupt:
+                for fut in futs:
+                    fut.cancel()
+                pp.shutdown(wait=False, cancel_futures=True)
+                shutdown_done = True
+                raise
+        finally:
+            if not shutdown_done:
+                pp.shutdown(wait=True)
         if show_spinner:
             print()  # newline after spinner
     # Deterministic ordering for exported reports (JSON/CSV/HTML/SARIF)

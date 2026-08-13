@@ -53,6 +53,21 @@ def print_console_findings(findings, limit=50):
         print(f"... showing {len(shown)} of {len(safe)} findings. Use --console-limit to show more.")
     print("Use --formats html csv json to save reports.")
 
+FAST_EXCLUDE_GLOBS = [
+    "**/.git/**",
+    "**/__pycache__/**",
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/env/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/*.egg-info/**",
+    "**/.pytest_cache/**",
+    "**/.mypy_cache/**",
+    "**/credaudit_out/**",
+]
+
 def print_banner(when: str = 'default', verbose: bool = False):
     # Only print banner in interactive terminals
     if not sys.stdout.isatty():
@@ -100,6 +115,8 @@ Scan Options:
   -p, --path PATH        File or folder to scan
   -o, --output-dir DIR   Output directory (default: ./credaudit_out)
   --formats FMT [...]    Report formats: json, csv, html, sarif
+  --safe                 Redacted reports and no raw-secret cache writes (default)
+  --raw                  Allow raw findings in reports/cache for internal remediation
   --list                 Dry-run: only list files to be scanned
   --timestamp            Append timestamp to report filenames
   --fail-on LEVEL        Exit non-zero if findings ≥ LEVEL
@@ -120,6 +137,7 @@ Advanced Features:
   --archive-depth N       How deep to unpack nested archives
   --no-cache              Force full rescan (ignore cache)
   --fast                  Fast defaults: .txt only, 10 KB max files, short timeout
+  --full, --standard      Use full configured scan scope instead of fast defaults
 Rule Selection:
   --only-rules R1 [R2 ...]  Restrict scanning to specific rule names or indices (from `credaudit rules`).
                             Accepts comma- or space-separated values, e.g., "PasswordAssignment,HighEntropyString" or "1 4 6".
@@ -174,10 +192,16 @@ def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('-p','--path', required=False, help='File or directory to scan')
     p.add_argument('-o','--output-dir', default='./credaudit_out', help='Output directory')
     p.add_argument('--formats', nargs='+', choices=['json','csv','html','sarif'], default=None)
-    p.add_argument('--safe', '--redacted-only', dest='safe', action='store_true',
-                   help='Write redacted-only reports and avoid raw-secret cache writes')
-    p.add_argument('--fast', action='store_true',
-                   help='Fast defaults: .txt only, max 10 KB per file, short timeout')
+    privacy = p.add_mutually_exclusive_group()
+    privacy.add_argument('--safe', '--redacted-only', dest='safe', action='store_true',
+                         help='Write redacted-only reports and avoid raw-secret cache writes (default)')
+    privacy.add_argument('--raw', action='store_true',
+                         help='Allow raw matched values in reports and cache; use only for internal remediation')
+    speed = p.add_mutually_exclusive_group()
+    speed.add_argument('--fast', action='store_true',
+                       help='Fast defaults: .txt only, max 10 KB per file, short timeout (default)')
+    speed.add_argument('--full', '--standard', dest='full', action='store_true',
+                       help='Use full configured scan scope instead of fast defaults')
     p.add_argument('--include-ext', nargs='*', help='Only scan these extensions (.txt .json .env ...)')
     p.add_argument('--include-glob', action='append', default=[], help='Include files matching glob (repeatable)')
     p.add_argument('--exclude-glob', action='append', default=[], help='Exclude files matching glob (repeatable)')
@@ -216,7 +240,7 @@ def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('--ndjson-include-raw', action='store_true', help='Include raw matched values in NDJSON (redacted only by default)')
     # Timeouts
     p.add_argument('--per-file-timeout', type=float, default=None,
-                   help='Kill and skip a file if scanning exceeds SEC seconds (default: 120; fast mode: 5; 0 disables)')
+                   help='Kill and skip a file if scanning exceeds SEC seconds (default: 120; fast mode: 2; 0 disables)')
     return p
 def main(argv=None)->int:
     argv = argv or sys.argv[1:]
@@ -226,7 +250,7 @@ def main(argv=None)->int:
         return 0
     known_commands = {'scan', 'rules', 'validate', 'convert'}
     if argv and argv[0] not in known_commands and argv[0] not in ('-h', '--help'):
-        argv = ['scan', '--safe', '--fast'] + argv
+        argv = ['scan'] + argv
     parser=argparse.ArgumentParser(
         prog='credaudit',
         description='CredAudit secret scanner',
@@ -318,11 +342,23 @@ def main(argv=None)->int:
     elif args.command=='scan':
         cfg = Config.from_yaml(args.config or DEFAULT_CONFIG_PATH)
         cfg.merge_cli_overrides(vars(args))
+        if not getattr(args, 'raw', False):
+            args.safe = True
+        if not getattr(args, 'full', False):
+            args.fast = True
         ignore_globs = load_ignore_file(args.ignore_file) if args.ignore_file else []
         target_path = args.path or args.target or '.'
         console_mode = args.formats is None
         formats = args.formats or []
-        include_exts = ['.txt'] if args.fast and not args.include_ext and not args.include_glob else cfg.include_ext
+        if args.fast and not args.include_ext and not args.include_glob:
+            include_exts = ['.txt']
+        elif args.include_glob and not args.include_ext:
+            include_exts = []
+        else:
+            include_exts = cfg.include_ext
+        exclude_globs = cfg.exclude_glob
+        if args.fast:
+            exclude_globs = list(dict.fromkeys((exclude_globs or []) + FAST_EXCLUDE_GLOBS))
         if args.max_size_kb is not None:
             max_size_bytes = args.max_size_kb * 1024
         elif args.max_size is not None:
@@ -333,10 +369,13 @@ def main(argv=None)->int:
             max_size_bytes = None
         per_file_timeout = args.per_file_timeout
         if per_file_timeout is None:
-            per_file_timeout = 5.0 if args.fast else 120.0
+            per_file_timeout = 2.0 if args.fast else 120.0
+        scan_workers = cfg.workers
+        if args.fast and args.workers is None:
+            scan_workers = min(4, os.cpu_count() or 2)
         if not getattr(args, 'no_banner', False):
             print_banner('scan', verbose=bool(args.verbose))
-        files = collect_files(target_path, include_exts, cfg.include_glob, cfg.exclude_glob,
+        files = collect_files(target_path, include_exts, cfg.include_glob, exclude_globs,
                               threads=cfg.threads, ignore_globs=ignore_globs,
                               max_size_bytes=max_size_bytes,
                               verbose=args.verbose)
@@ -352,29 +391,33 @@ def main(argv=None)->int:
             '3': 3, 'L3': 3, 'high': 3, 'aggressive': 3,
         }
         rule_level = sens_map.get(getattr(args, 'sensitivity', None))
-        findings, code = scan_paths(files, args.output_dir, formats, args.timestamp,
-                                    cfg.cache_file, cfg.entropy_min_length, cfg.entropy_threshold,
-                                    cfg.workers, args.fail_on, args.scan_archives, args.archive_depth,
-                                    args.verbose, args.no_cache,
-                                    har_include=args.har_include,
-                                    har_max_body_bytes=args.har_max_body_bytes,
-                                    rule_level=rule_level,
-                                    ndjson_out=getattr(args,'ndjson_out',None),
-                                    ndjson_truncate=bool(getattr(args,'ndjson_truncate',False)),
-                                    ndjson_flush_sec=getattr(args,'ndjson_flush_sec',None),
-                                    ndjson_buffer=getattr(args,'ndjson_buffer',None),
-                                    ndjson_include_raw=bool(getattr(args,'ndjson_include_raw',False)),
-                                    per_file_timeout=per_file_timeout,
-                                    safe_report=bool(getattr(args,'safe',False)),
-                                    only_rules=(
-                                        (lambda tokens: (
-                                            (lambda names: list(dict.fromkeys([
-                                                (names[int(t)-1] if str(t).isdigit() and 1 <= int(t) <= len(names) else str(t))
-                                                for part in tokens for t in str(part).split(',') if str(t).strip()
-                                            ])))([r.name for r in build_rules(rule_level)])
-                                        )
-                                        )((getattr(args,'only_rules',[]) or [])) if hasattr(args,'only_rules') and getattr(args,'only_rules',None) else None
-                                    ))
+        try:
+            findings, code = scan_paths(files, args.output_dir, formats, args.timestamp,
+                                        cfg.cache_file, cfg.entropy_min_length, cfg.entropy_threshold,
+                                        scan_workers, args.fail_on, args.scan_archives, args.archive_depth,
+                                        args.verbose, args.no_cache,
+                                        har_include=args.har_include,
+                                        har_max_body_bytes=args.har_max_body_bytes,
+                                        rule_level=rule_level,
+                                        ndjson_out=getattr(args,'ndjson_out',None),
+                                        ndjson_truncate=bool(getattr(args,'ndjson_truncate',False)),
+                                        ndjson_flush_sec=getattr(args,'ndjson_flush_sec',None),
+                                        ndjson_buffer=getattr(args,'ndjson_buffer',None),
+                                        ndjson_include_raw=bool(getattr(args,'ndjson_include_raw',False)),
+                                        per_file_timeout=per_file_timeout,
+                                        safe_report=bool(getattr(args,'safe',False)),
+                                        only_rules=(
+                                            (lambda tokens: (
+                                                (lambda names: list(dict.fromkeys([
+                                                    (names[int(t)-1] if str(t).isdigit() and 1 <= int(t) <= len(names) else str(t))
+                                                    for part in tokens for t in str(part).split(',') if str(t).strip()
+                                                ])))([r.name for r in build_rules(rule_level)])
+                                            )
+                                            )((getattr(args,'only_rules',[]) or [])) if hasattr(args,'only_rules') and getattr(args,'only_rules',None) else None
+                                        ))
+        except KeyboardInterrupt:
+            print("\nScan interrupted by user.")
+            return 130
         t_end = time.perf_counter()
         elapsed = t_end - t_start
         # Friendly end-of-run summary
@@ -384,7 +427,7 @@ def main(argv=None)->int:
         cL = sum(1 for f in findings if (f.get('severity') or 'Low') == 'Low')
         fmts = ','.join(formats)
         sens_txt = {1:'L1/cautious',2:'L2/balanced',3:'L3/aggressive'}.get(rule_level or 2, 'L2/balanced')
-        mode_txt = 'fast safe/redacted' if getattr(args, 'safe', False) and args.fast else ('safe/redacted' if getattr(args, 'safe', False) else ('fast' if args.fast else 'standard'))
+        mode_txt = f"{'fast' if args.fast else 'standard'} {'safe/redacted' if getattr(args, 'safe', False) else 'raw'}"
         if console_mode:
             print_console_findings(findings, getattr(args, 'console_limit', 50))
             report_txt = 'console only'

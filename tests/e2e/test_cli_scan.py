@@ -72,6 +72,7 @@ class TestCliScan(unittest.TestCase):
             out = tmp / "out"
             cache = tmp / "cache.json"
             res = run_cli([
+                "scan",
                 str(tmp),
                 "-o", str(out),
                 "--cache-file", str(cache),
@@ -82,7 +83,7 @@ class TestCliScan(unittest.TestCase):
             self.assertTrue(report.exists(), "safe shortcut did not create report.json")
             text = report.read_text(encoding="utf-8")
             self.assertNotIn("Abcd1234", text)
-            self.assertIn("**********", text)
+            self.assertIn("A****4", text)
             self.assertFalse(cache.exists(), "safe mode should not write a raw findings cache")
 
     def test_safe_shortcut_fast_defaults_to_small_txt_only(self):
@@ -105,6 +106,171 @@ class TestCliScan(unittest.TestCase):
             self.assertNotIn("secret.json", files)
             self.assertNotIn("large.txt", files)
 
+    def test_scan_command_defaults_to_safe_fast(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            small_txt = write_file(tmp / "small.txt", "password: Abcd1234\n")
+            write_file(tmp / "secret.env", "password=Env1234\n")
+            write_file(tmp / "large.txt", ("A" * 11000) + "\npassword: Large1234\n")
+            out = tmp / "out"
+            cache = tmp / "cache.json"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--cache-file", str(cache),
+                "--formats", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            text = (out / "report.json").read_text(encoding="utf-8")
+            self.assertNotIn("Abcd1234", text)
+            self.assertIn("A****4", text)
+            self.assertFalse(cache.exists(), "default safe mode should not write a raw findings cache")
+            arr = load_json_array(out / "report.json")
+            files = {Path(f.get("file", "")).name for f in arr}
+            self.assertIn(small_txt.name, files)
+            self.assertNotIn("secret.env", files)
+            self.assertNotIn("large.txt", files)
+
+    def test_full_raw_opt_out_uses_standard_scope_and_cache(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "secrets.txt", "password: Abcd1234\n")
+            write_file(tmp / "secret.env", "password=Env1234\n")
+            out = tmp / "out"
+            cache = tmp / "cache.json"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--cache-file", str(cache),
+                "--formats", "json",
+                "--full",
+                "--raw",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            text = (out / "report.json").read_text(encoding="utf-8")
+            self.assertIn("Abcd1234", text)
+            self.assertIn("Env1234", text)
+            self.assertTrue(cache.exists(), "raw standard mode should write the findings cache")
+            arr = load_json_array(out / "report.json")
+            files = {Path(f.get("file", "")).name for f in arr}
+            self.assertIn("secret.env", files)
+
+    def test_include_glob_allows_explicit_non_default_text_extension(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "secret.yaml", "password: Yaml1234\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--include-glob", "**/*.yaml",
+                "--formats", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            files = {Path(f.get("file", "")).name for f in arr}
+            self.assertIn("secret.yaml", files)
+
+    def test_overlapping_rules_are_deduplicated_by_secret_value(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "secrets.txt", "password: Secret123!;\napi_key=sk-abcde1234567890,\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--raw",
+                "--formats", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            findings_by_line = {}
+            for finding in arr:
+                findings_by_line.setdefault(finding.get("line"), []).append(finding)
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(1, [])], ["PasswordAssignment"])
+            self.assertEqual([f.get("match") for f in findings_by_line.get(1, [])], ["Secret123!"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(2, [])], ["APIKeyGeneric"])
+            self.assertEqual([f.get("match") for f in findings_by_line.get(2, [])], ["sk-abcde1234567890"])
+
+    def test_username_and_password_keyword_indicators_are_reported(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "indicators.txt", "username=admin\nplease rotate password soon\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--formats", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            rules_by_line = {}
+            for finding in arr:
+                rules_by_line.setdefault(finding.get("line"), []).append(finding.get("rule"))
+            self.assertEqual(rules_by_line.get(1), ["UsernameAssignment"])
+            self.assertEqual(rules_by_line.get(2), ["PasswordKeyword"])
+
+    def test_standalone_password_candidates_are_reported_by_default(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(
+                tmp / "candidates.txt",
+                "myo@193\nmISX%%13402\npassword: myo@193\njohn@example.com\npython-docx\nCredAudit v{VERSION}\n",
+            )
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--raw",
+                "--formats", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            findings_by_line = {}
+            for finding in arr:
+                findings_by_line.setdefault(finding.get("line"), []).append(finding)
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(1, [])], ["PasswordCandidate"])
+            self.assertEqual([f.get("match") for f in findings_by_line.get(1, [])], ["myo@193"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(2, [])], ["PasswordCandidate"])
+            self.assertEqual([f.get("match") for f in findings_by_line.get(2, [])], ["mISX%%13402"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(3, [])], ["PasswordAssignment"])
+            self.assertNotIn(4, findings_by_line)
+            self.assertNotIn(5, findings_by_line)
+            self.assertNotIn(6, findings_by_line)
+
+    def test_username_on_line_before_password_is_reported(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(
+                tmp / "paired.txt",
+                "admin\nmyo@193\nusername=alice\npassword: Secret123!\nthis is just text\nmISX%%13402\njohn@example.com\nmISX%%13402\n",
+            )
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--raw",
+                "--formats", "json",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            findings_by_line = {}
+            for finding in arr:
+                findings_by_line.setdefault(finding.get("line"), []).append(finding)
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(1, [])], ["UsernameNearPassword"])
+            self.assertEqual([f.get("severity") for f in findings_by_line.get(1, [])], ["High"])
+            self.assertEqual([f.get("match") for f in findings_by_line.get(1, [])], ["admin"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(2, [])], ["PasswordCandidate"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(3, [])], ["UsernameNearPassword"])
+            self.assertEqual([f.get("severity") for f in findings_by_line.get(3, [])], ["High"])
+            self.assertEqual([f.get("match") for f in findings_by_line.get(3, [])], ["alice"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(4, [])], ["PasswordAssignment"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(6, [])], ["PasswordCandidate"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(7, [])], ["UsernameNearPassword"])
+            self.assertEqual([f.get("severity") for f in findings_by_line.get(7, [])], ["High"])
+            self.assertEqual([f.get("match") for f in findings_by_line.get(7, [])], ["john@example.com"])
+            self.assertEqual([f.get("rule") for f in findings_by_line.get(8, [])], ["PasswordCandidate"])
+
     def test_shortcut_without_formats_prints_redacted_console(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
@@ -118,7 +284,7 @@ class TestCliScan(unittest.TestCase):
             self.assertIn("Findings (redacted)", res.stdout)
             self.assertIn("Severity Rule                     Line   File", res.stdout)
             self.assertIn("PasswordAssignment", res.stdout)
-            self.assertIn("pass**********1234", res.stdout)
+            self.assertIn("A****4", res.stdout)
             self.assertNotIn("Abcd1234", res.stdout)
             self.assertFalse((out / "report.json").exists(), "console mode should not write report.json")
 

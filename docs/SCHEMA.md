@@ -19,11 +19,11 @@ Contents:
   - `redacted` (string): masked representation of the secret.
   - `context` (string): surrounding text snippet (single line, truncated, with matched secret redacted when possible).
   - `line` (number|string): 1‑based line index (string or number). May be empty when unavailable.
-  - Optional `match` (string): raw value, present only when `--ndjson-include-raw` is used in standard mode.
+  - Optional `match` (string): raw value, present only when `--raw --ndjson-include-raw` is used.
 
 Example line:
 ```
-{"ts":"2025-09-07T07:45:12+00:00","file":"C:/repo/.env","rule":"PasswordAssignment","severity":"Medium","redacted":"pass**********d123","context":"pass**********d123","line":3}
+{"ts":"2026-08-13T07:45:12+00:00","file":"C:/repo/.env","rule":"PasswordAssignment","severity":"Medium","redacted":"A****4","context":"password: A****4","line":3}
 ```
 
 ## JSON (final report)
@@ -32,7 +32,7 @@ Example line:
 - Fields per finding:
   - `file` (string)
   - `rule` (string)
-  - `match` (string): raw value in standard mode, redacted value in safe mode
+  - `match` (string): raw value in raw mode, redacted value in safe mode
   - `redacted` (string)
   - `context` (string)
   - `severity` (string): `Low` | `Medium` | `High`
@@ -44,9 +44,9 @@ Example (trimmed):
   {
     "file":"C:/repo/.env",
     "rule":"PasswordAssignment",
-    "match":"password: Abcd1234",
-    "redacted":"pass**********d123",
-    "context":"pass**********d123",
+    "match":"A****4",
+    "redacted":"A****4",
+    "context":"password: A****4",
     "severity":"Medium",
     "line":3
   }

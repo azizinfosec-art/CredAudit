@@ -64,6 +64,30 @@ def build_rules(level: Optional[int] = None) -> List['Rule']:
             "password secret123",
         ))
         rules.append(Rule(
+            "PasswordKeyword",
+            re.compile(r"(?i)\bpassword\b"),
+            "Line contains the word password but no stronger secret match",
+            "password required",
+        ))
+        rules.append(Rule(
+            "UsernameAssignment",
+            re.compile(r"\b(username|user_id|userid|login|user)\b\s*[\"']?(=|:|=>|:=|->)\s*[\"']?([^\s\"']{1,})[\"']?", re.IGNORECASE),
+            "Username or login assignment",
+            "username=admin",
+        ))
+        rules.append(Rule(
+            "PasswordCandidate",
+            re.compile(r"$^"),
+            "Standalone value that looks like a password candidate",
+            "mISX%%13402",
+        ))
+        rules.append(Rule(
+            "UsernameNearPassword",
+            re.compile(r"$^"),
+            "Username-like value on the line before a password finding",
+            "admin\nmISX%%13402",
+        ))
+        rules.append(Rule(
             "APIKeyGeneric",
             re.compile(r"\b(sk|pk)-[A-Za-z0-9]{10,}\b"),
             "Generic API key",
