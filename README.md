@@ -1,303 +1,455 @@
 # CredAudit
 
-Fast, resilient secret scanner for files, folders, and HTTP traffic captures (HAR). Supports text, DOCX, PDF, XLSX, and HAR with multiple report formats.
+CredAudit is a Python command-line tool for finding exposed credentials, API keys, tokens, private keys, and other secrets in files, folders, archives, and HTTP Archive (`.har`) traffic captures.
 
-## What's New (v0.4.0)
+It is designed for security reviews, client audits, CI checks, and quick evidence gathering. It reads common document and configuration formats, applies built-in detection rules, redacts sensitive values in most reports, and exports findings in formats that are easy to review or integrate with security tooling.
 
-- CLI: `--only-rules` to restrict detection to specific rules. Accepts names or numeric indices (see `credaudit rules`). Examples: `--only-rules PasswordAssignment` or `--only-rules 1 3 5`.
-- HTML: new cyber‑hacker themed dashboard (dark neon, two‑pane layout, sticky header/footer, keyboard shortcuts). Exporter now prefers an external template at `credaudit/html_templates/report.html.j2` and falls back to the built‑in template if missing.
-- Branding hooks: set `CREDAUDIT_AUTHOR_NAME` and `CREDAUDIT_AUTHOR_URL` to personalize the report header.
+## Main Features
 
-## What's New (v0.3.16)
+- Scan a single file or a full directory tree.
+- Extract text from plaintext files, JSON, `.env`, DOCX, PDF, XLSX, and HAR captures.
+- Optionally scan ZIP, TAR, TGZ, TAR.GZ, and RAR archives.
+- Detect common credential types such as private keys, AWS keys, GitHub tokens, Slack tokens, Stripe keys, JWTs, database URLs with embedded passwords, provider API keys, password assignments, and high-entropy strings.
+- Choose scan sensitivity with cautious, balanced, and aggressive levels.
+- Limit scans by extension, include glob, exclude glob, ignore file, and maximum file size.
+- Generate JSON, CSV, HTML, and SARIF reports.
+- Stream findings to NDJSON during large scans.
+- Reuse cached results for unchanged files to speed up repeated scans.
+- Fail a CI job when findings meet a selected severity threshold.
 
-- Added `.toml` to supported text extensions; TOML files are now scanned as plaintext.
+## Requirements
 
-## What's New (v0.3.15)
-
-- Per-file timeout to prevent runs stalling on corrupt/huge files: `--per-file-timeout SEC` (default 120; 0 disables). Timed-out files are skipped and reported with `--verbose`.
-- Deterministic exports: JSON/CSV/HTML/SARIF are now sorted by `file`, then `line`, then `rule` for stable outputs across runs. `--list` output is also sorted. (NDJSON remains streamed in completion order by design.)
-
-## What's New (v0.3.13)
-
-- Provider-specific detections (enabled at Sensitivity L2/L3): Google API key, Slack tokens, SendGrid API key, GitLab PAT, npm token, OpenAI key, Telegram bot token, Twilio Account SID/Auth token. L1 remains cautious.
-
-## What's New (v0.3.12)
-
-- HAR support: scan .har files exported with content (Burp/ZAP/DevTools)
-  - Options: --har-include {both,responses,requests}
-  - Options: --har-max-body-bytes N (bytes) or env CREDAUDIT_HAR_MAX_BODY_BYTES
-- HTML report: server-rendered rows so data shows without JavaScript; env CREDAUDIT_HTML_MAX_ROWS controls embedded rows (default 500)
-- CLI help: Environment section includes CREDAUDIT_HTML_MAX_ROWS; Scan help includes HAR options
- - Sensitivity levels: --sensitivity {1,2,3} to choose cautious/balanced/aggressive rule sets
- - CLI UX: interactive spinner progress (TTY) and end-of-run summary with elapsed time
+- Python 3.10 or later.
+- Package dependencies are installed automatically from `pyproject.toml`.
+- RAR archive scanning may require an external `unrar` or `unar` utility depending on the operating system.
 
 ## Installation
 
-- Requirements: Python 3.10+
-- Local install (from this repo):
-  - `python -m pip install .`
-  - or dev mode: `python -m pip install -e .`
-
-This installs the console command `credaudit`. You can also run via `python -m credaudit`.
-
-## Quickstart
-
-Scan a file or directory and produce JSON/CSV/HTML reports:
+Install from this repository:
 
 ```sh
-credaudit scan -p ./tests/secrets.txt --formats json csv html
-# or
-python -m credaudit scan -p ./tests/secrets.txt --formats json csv html
+python -m pip install .
 ```
 
-Outputs are written to `./credaudit_out` by default. The banner shows only on interactive terminals; use `--no-banner` to silence it.
-
-## Linux (Install & Use)
-
-Install (user environment)
+For development or local testing:
 
 ```sh
-# 1) Ensure Python 3.10+ is available
-python3 --version
-
-# 2) Create and activate a virtualenv (recommended)
-python3 -m venv .venv
-. .venv/bin/activate
-
-# 3) Install CredAudit from this repo
-python -m pip install --upgrade pip
 python -m pip install -e .
-
-# 4) (Optional) Utilities for archive scanning
-# RAR support: install unrar/unar if you plan to use --scan-archives
-# Debian/Ubuntu: sudo apt-get install unrar
-# macOS (Homebrew): brew install unar
 ```
 
-Run scans
+After installation, use the `credaudit` command. You can also run it as a module:
 
 ```sh
-# Scan a folder and produce HTML/JSON/CSV
-credaudit scan -p . --formats html json csv
-
-# Scan a HAR capture (responses + requests)
-credaudit scan -p traffic.har --formats html
-
-# Open the HTML report
-xdg-open credaudit_out/report.html 2>/dev/null || true
+python -m credaudit --version
 ```
 
-## Windows (Install & Use)
+## Quick Start
 
-Install (PowerShell)
+Scan a file and create the default reports:
 
-```powershell
-# 1) Ensure Python 3.10+ is installed (Microsoft Store or python.org)
-py --version
-
-# 2) Create and activate a virtualenv (recommended)
-py -m venv .venv
-. .venv\Scripts\Activate.ps1
-
-# 3) Install CredAudit from this repo
-py -m pip install --upgrade pip
-py -m pip install -e .
+```sh
+credaudit scan -p ./tests/secrets.txt
 ```
 
-Run scans
+Scan a folder and create HTML, JSON, and CSV reports:
 
-```powershell
-# Scan a folder and produce HTML/JSON/CSV
-credaudit scan -p . --formats html json csv
-
-# Scan a HAR capture (responses + requests)
-credaudit scan -p traffic.har --formats html
-
-# Open the HTML report
-start credaudit_out\report.html
+```sh
+credaudit scan -p ./project --formats html json csv
 ```
+
+Reports are written to `./credaudit_out` by default:
+
+- `report.html` - interactive browser report.
+- `report.json` - full finding data, including raw matches.
+- `report.csv` - redacted tabular report.
+- `report.sarif` - SARIF 2.1.0 when requested.
+
+Use `--timestamp` when you want report files such as `report_YYYYMMDD_HHMMSS.html` instead of overwriting `report.html`.
+
+## Typical Client Workflow
+
+1. Validate the local configuration:
+
+   ```sh
+   credaudit validate
+   ```
+
+2. Review available detection rules:
+
+   ```sh
+   credaudit rules
+   ```
+
+3. Run a dry scan to confirm scope:
+
+   ```sh
+   credaudit scan -p ./client-data --list
+   ```
+
+4. Run the audit and export reports:
+
+   ```sh
+   credaudit scan -p ./client-data --formats html json csv --timestamp
+   ```
+
+5. Open the HTML report:
+
+   Windows PowerShell:
+
+   ```powershell
+   start credaudit_out\report.html
+   ```
+
+   Linux or macOS:
+
+   ```sh
+   xdg-open credaudit_out/report.html 2>/dev/null || open credaudit_out/report.html
+   ```
+
+6. Triage high and medium severity findings first, then use the file path and line number in each report row to remediate the source files.
 
 ## Commands
 
-- `credaudit validate`  Validate config and show enabled parsers.
-- `credaudit rules`  List built‑in detection rules.
-- `credaudit scan`  Run a scan on files/folders.
+### `credaudit validate`
+
+Checks that configuration can be loaded and prints active parser settings.
+
+```sh
+credaudit validate
+```
+
+### `credaudit rules`
+
+Lists built-in detection rules with their names and descriptions.
+
+```sh
+credaudit rules
+```
+
+Rule names can be used with `--only-rules`.
+
+### `credaudit scan`
+
+Runs the scanner against a file or directory.
+
+```sh
+credaudit scan -p ./path-to-scan --formats html json csv
+```
+
+### `credaudit convert`
+
+Converts streamed NDJSON findings into HTML or CSV reports without rescanning.
+
+```sh
+credaudit convert --in credaudit_out/findings.ndjson --out credaudit_out/final_report --formats html csv
+```
+
+This creates `final_report.html` and/or `final_report.csv`.
+
+## Common Usage Examples
+
+Scan only `.env` and JSON files:
+
+```sh
+credaudit scan -p ./project --include-ext .env .json --formats html csv
+```
+
+Exclude dependency and cache folders:
+
+```sh
+credaudit scan -p ./project --exclude-glob "**/node_modules/**" --exclude-glob "**/__pycache__/**"
+```
+
+Use include globs:
+
+```sh
+credaudit scan -p ./project --include-glob "**/*.env" --include-glob "**/*.yaml"
+```
+
+Use an ignore file:
+
+```sh
+credaudit scan -p ./project --ignore-file .credauditignore
+```
+
+Skip large files:
+
+```sh
+credaudit scan -p ./project --max-size 10
+```
+
+Run a full rescan without cache:
+
+```sh
+credaudit scan -p ./project --no-cache
+```
+
+Fail CI if any high severity finding is present:
+
+```sh
+credaudit scan -p ./src --formats sarif json --fail-on High
+```
+
+Run only selected rules:
+
+```sh
+credaudit scan -p ./project --only-rules PasswordAssignment GitHubToken
+```
+
+You can also use numeric rule indexes from `credaudit rules`:
+
+```sh
+credaudit scan -p ./project --only-rules 1 3 5
+```
 
 ## Scan Options
 
-- `-p, --path PATH` File or directory to scan.
-- `-o, --output-dir DIR`  Output directory (default: `./credaudit_out`).
-- `--formats FMT [...]` Any of: `json`, `csv`, `html`, `sarif`.
-- `--include-ext EXT [...]` Limit by extensions (e.g. `.env .json`).
-- `--include-glob PATTERN [...]`  Include files by glob (repeatable).
-- `--exclude-glob PATTERN [...]` Exclude files by glob (repeatable).
-- `--ignore-file FILE` Glob patterns file (like `.credauditignore`).
-- `--max-size MB` Skip files larger than this size.
-- `--threads N` Threads for file discovery.
-- `--workers N` Processes for scanning.
-- `--list` Dry-run: only list files that would be scanned.
-- `--timestamp`  Append a timestamp to report filenames.
-- `--fail-on {Low,Medium,High}` Exit non‑zero if any finding ≥ threshold.
-- `--config PATH`  Path to `config.yaml` (default: `config.yaml`).
-- `--entropy-min-length INT`  Min token length for entropy rule (default: 20).
-- `--entropy-threshold FLOAT`  Entropy threshold (default: 4.0).
-- `--cache-file PATH` Cache file (default: `.credaudit_cache.json`).
-- `--scan-archives` (Placeholder) Flag for archive scanning.
-- `--archive-depth N` Depth for nested archives.
-- `--no-cache` Ignore cache; force full rescan.
-- `--verbose` Verbose logging.
-- `--no-banner` Suppress ASCII banner output.
-- `--per-file-timeout SEC` Kill and skip a file if scanning exceeds SEC seconds (default 120; set 0 to disable).
+Important scan flags:
 
-## Examples
+- `-p, --path PATH` - file or directory to scan.
+- `-o, --output-dir DIR` - output directory. Default: `./credaudit_out`.
+- `--formats json csv html sarif` - one or more final report formats.
+- `--include-ext EXT [...]` - scan only these extensions.
+- `--include-glob PATTERN` - include files matching a glob. Can be repeated.
+- `--exclude-glob PATTERN` - exclude files matching a glob. Can be repeated.
+- `--ignore-file FILE` - load ignore glob patterns from a file.
+- `--max-size MB` - skip files larger than this size.
+- `--threads N` - threads used for file discovery.
+- `--workers N` - worker processes used for scanning.
+- `--list` - dry run. Print files that would be scanned.
+- `--timestamp` - append a timestamp to report filenames.
+- `--fail-on Low|Medium|High` - exit with code `2` if findings meet or exceed the threshold.
+- `--config PATH` - config file path. Default: `config.yaml`.
+- `--entropy-min-length INT` - minimum token length for entropy detection.
+- `--entropy-threshold FLOAT` - entropy threshold. Default: `4.0`.
+- `--cache-file PATH` - cache file path. Default: `.credaudit_cache.json`.
+- `--scan-archives` - scan supported archive files.
+- `--archive-depth N` - nested archive depth.
+- `--no-cache` - ignore cache and force a full rescan.
+- `--verbose` - print scan details and skip reasons.
+- `--no-banner` - suppress the ASCII banner.
+- `--per-file-timeout SEC` - stop scanning a file after this many seconds. Default: `120`; use `0` to disable.
+- `--only-rules R1 R2 ...` - restrict detection to specific rule names or rule indexes.
+- `--sensitivity 1|2|3` - select cautious, balanced, or aggressive detection.
+- `--har-include both|responses|requests` - choose which HAR bodies to scan.
+- `--har-max-body-bytes N` - maximum HAR request or response body size to scan.
+- `--ndjson-out PATH` - stream findings to NDJSON while scanning.
+- `--ndjson-truncate` - clear the NDJSON file before writing.
+- `--ndjson-flush-sec SEC` - time-based NDJSON flush interval.
+- `--ndjson-buffer N` - finding-count NDJSON flush threshold.
+- `--ndjson-include-raw` - include raw matched values in NDJSON.
 
-- Dry run to see what would be scanned:
-  ```sh
-  credaudit scan -p . --list
-  ```
+## Sensitivity Levels
 
-- Include only `.env` files while excluding dependencies:
-  ```sh
-  credaudit scan -p . --include-ext .env --exclude-glob "**/node_modules/**" --exclude-glob "**/__pycache__/**"
-  ```
+Use `--sensitivity` to control how broad the rules should be:
 
-- Use globs instead of extensions:
-  ```sh
-  credaudit scan -p . --include-glob "**/*.env" --include-glob "**/*.json"
-  ```
+- `1`, `L1`, `low`, or `cautious` - high-confidence rules only. Entropy detection is disabled to reduce noise.
+- `2`, `L2`, `medium`, or `balanced` - default. Includes password/API-key assignment rules and entropy detection.
+- `3`, `L3`, `high`, or `aggressive` - currently similar to balanced, with entropy enabled.
 
-- Stricter entropy to reduce noise:
-  ```sh
-  credaudit scan -p . --entropy-min-length 24 --entropy-threshold 4.5
-  ```
+Example:
 
-- Fail CI if High severity found and timestamp reports:
-  ```sh
-  credaudit scan -p ./src --formats sarif json --fail-on High --timestamp
-  ```
-  
-- Prevent stalling on very slow files by enforcing a timeout and see skipped files with verbose:
-  ```sh
-  credaudit scan -p . --per-file-timeout 120 --formats json --timestamp --verbose
-  ```
+```sh
+credaudit scan -p ./project --sensitivity 1 --formats html csv
+```
 
-### HAR Options
+## What CredAudit Scans
 
-- `--har-include {both,responses,requests}`: what to scan inside .har (default: both)
-- `--har-max-body-bytes N`: max size per HAR body in bytes (default 2097152; env CREDAUDIT_HAR_MAX_BODY_BYTES)
+Default included extensions from `config.yaml`:
 
-### All Scan Flags (complete)
+```text
+.txt, .json, .env, .docx, .pdf, .xlsx, .har
+```
 
-- `-p, --path PATH`: File or directory to scan
-- `-o, --output-dir DIR`: Output directory (default: `./credaudit_out`)
-- `--formats {json,csv,html,sarif} [...]`: One or more output formats
-- `--include-ext EXT [...]`: Only scan these extensions (e.g., `.env .json`)
-- `--include-glob PATTERN` (repeatable): Include files matching glob(s)
-- `--exclude-glob PATTERN` (repeatable): Exclude files matching glob(s)
-- `--ignore-file FILE`: Path to ignore patterns file (like `.credauditignore`)
-- `--max-size MB`: Skip files larger than MB
-- `--threads N`: Threads for file discovery
-- `--workers N`: Processes for scanning
-- `--list`: Dry-run — only list files to be scanned
-- `--timestamp`: Append timestamp to report filenames
-- `--fail-on {Low,Medium,High}`: Exit non-zero if any finding ≥ threshold
-- `--config PATH`: Path to `config.yaml` (default: `config.yaml`)
-- `--entropy-min-length INT`: Min token length for entropy rule (default: 20)
-- `--entropy-threshold FLOAT`: Entropy threshold (default: 4.0)
-- `--cache-file PATH`: Cache file name/path (default: `.credaudit_cache.json`)
-- `--scan-archives`: Scan inside ZIP/TAR/RAR archives (optional)
-- `--archive-depth N`: How deep to unpack nested archives
-- `--no-cache`: Force full rescan (ignore cache)
-- `--verbose`: Verbose logging with skip reasons
-- `--no-banner`: Suppress ASCII banner output
-- `--per-file-timeout SEC`: Kill and skip a file if scanning exceeds SEC seconds (default 120; 0 disables)
-- `--har-include {both,responses,requests}`: What bodies to scan in `.har`
-- `--har-max-body-bytes N`: Max size per HAR body (bytes); env `CREDAUDIT_HAR_MAX_BODY_BYTES`
-- `--sensitivity {1,2,3}`: Rule sensitivity (1=cautious, 2=balanced, 3=aggressive)
+The extractor can also read these plaintext-style extensions when they are included by CLI flag or config:
 
-### Sensitivity
+```text
+.log, .cfg, .ini, .yaml, .yml, .py, .js, .toml
+```
 
-- `--sensitivity {1,2,3}` — Rule sensitivity level:
-  - `1` (cautious): high-confidence rules only; entropy-based detection disabled
-  - `2` (balanced, default): includes password/API key assignment rules + entropy
-  - `3` (aggressive): same as 2 (entropy enabled). Future versions may add more generic patterns here.
-  - Aliases: `L1/L2/L3`, `low/medium/high`.
+Extraction behavior:
 
-### Progress & Summary
+- Plaintext files are read with UTF-8, UTF-16, and Latin-1 fallbacks.
+- DOCX files are scanned from paragraph text.
+- PDF files are scanned through `pdfminer.six` text extraction.
+- XLSX files are scanned from cell values, including simple key/value rows such as `password: value`.
+- HAR files are scanned from textual request and response bodies.
 
-- Minimal spinner shows during scanning in interactive terminals (TTY). Suppressed with `--verbose`.
-- Verbose mode prints a one-line tip instead of the spinner.
-- End-of-run summary includes severity counts and elapsed time, for example:
-  `Scanned 124 files | Findings: 38 (H:2 M:11 L:25) | Time: 7.42s | Reports: credaudit_out (formats: html,json,csv)`
+## Detection Coverage
+
+Built-in rules include:
+
+- PEM private keys.
+- AWS Access Key IDs.
+- AWS Secret Access Keys in contextual assignments.
+- GitHub tokens.
+- JWTs with valid JSON header and payload structure.
+- Password, secret, API key, and token assignments.
+- Slack webhook URLs and Slack tokens.
+- Google API keys.
+- SendGrid API keys.
+- GitLab personal access tokens.
+- npm tokens.
+- OpenAI API keys.
+- Telegram bot tokens.
+- Twilio Account SID and contextual Twilio auth tokens.
+- Stripe secret keys.
+- Azure Storage SAS URLs with signatures.
+- Database connection strings with embedded passwords.
+- High-entropy strings.
+
+Run `credaudit rules` for the exact rule names available in the installed version.
+
+## HAR Scanning
+
+CredAudit can scan `.har` files exported from tools such as browsers, Burp Suite, or OWASP ZAP when request or response bodies are included in the capture.
+
+Scan both requests and responses:
+
+```sh
+credaudit scan -p traffic.har --formats html json csv
+```
+
+Scan only responses:
+
+```sh
+credaudit scan -p traffic.har --har-include responses --formats html
+```
+
+Limit the maximum body size scanned per HAR entry:
+
+```sh
+credaudit scan -p traffic.har --har-max-body-bytes 4194304
+```
+
+The same limit can be set with the `CREDAUDIT_HAR_MAX_BODY_BYTES` environment variable.
+
+HAR finding paths use virtual IDs such as:
+
+```text
+https://example.test/api/login#response
+```
+
+## Archive Scanning
+
+Archive scanning is enabled with `--scan-archives`. Because archive extensions are not in the default include list, include them explicitly when scanning archive files or folders that contain archives.
+
+Example:
+
+```sh
+credaudit scan -p ./artifacts --scan-archives --archive-depth 2 --include-ext .zip .tar .tgz .gz .rar --formats html json
+```
+
+For `.tar.gz` specifically, use `--include-ext .gz` or an include glob such as `--include-glob "**/*.tar.gz"`.
+
+Supported archive formats:
+
+- `.zip`
+- `.tar`
+- `.tgz`
+- `.tar.gz`
+- `.rar`
+
+Archive extraction is performed in a temporary directory with path traversal protection. Findings from archives are reported with paths like:
+
+```text
+archive.zip!inner/folder/file.env
+```
 
 ## Output Formats
 
-- `json` — Full findings (includes raw `match` and `redacted`).
-- `csv` — Columns: `file, rule, redacted, severity, line, context`.
-- `html` — Single‑page, sortable summary with severity coloring.
-- `sarif` — SARIF 2.1.0 for code scanning integrations.
+### HTML
 
-Notes:
-- JSON includes the raw matched value (`match`) for completeness. Handle with care.
-- The HTML displays a limited, lightweight view (default max 500 rows) to keep browsers responsive.
-- Use the “Full CSV” and “Full JSON” links in the report for complete data.
-- You can adjust the maximum embedded rows via env var: `CREDAUDIT_HTML_MAX_ROWS` (e.g., 1000).
+The HTML report is an interactive dashboard for review and triage. It includes:
 
-## What Gets Scanned
+- Severity counts.
+- Search and filtering.
+- Rule and file type filters.
+- Sortable table columns.
+- Redacted values by default.
+- Optional raw-value reveal in the browser.
+- Links to JSON and CSV when those formats are generated in the same run.
 
-By default, the following extensions are included:
-`.txt, .json, .env, .docx, .pdf, .xlsx, .har`
+Recommended command:
 
-- Text files are read with encoding fallbacks (`utf‑8`, `utf‑16`, `latin‑1`).
-- DOCX: paragraph text extracted.
-- PDF: text extracted via `pdfminer.six`.
-- XLSX: cell values extracted; simple key/value heuristics for secrets (e.g., `password: value`).
+```sh
+credaudit scan -p ./project --formats html json csv
+```
 
-You can override defaults via `--include-ext` or `config.yaml`.
+The HTML report embeds a limited number of rows for browser performance. The default is `500`. Adjust this with:
 
-### Archive Scanning
+```sh
+CREDAUDIT_HTML_MAX_ROWS=1000 credaudit scan -p ./project --formats html json csv
+```
 
-- Enable with `--scan-archives`; control nested depth with `--archive-depth N`.
-- Supported formats: `.zip`, `.tar`, `.tgz`, `.tar.gz`, `.rar`.
-- Safe extraction to a temporary directory with path traversal protection.
-- Only scans extracted files with supported extensions (same list as above).
-- Findings from archives show paths like: `archive.zip!inner/folder/file.env`.
-- Example:
-  ```sh
-  credaudit scan -p ./artifacts --scan-archives --archive-depth 2 --formats html json
-  ```
+On Windows PowerShell:
 
-### HAR Support
+```powershell
+$env:CREDAUDIT_HTML_MAX_ROWS = "1000"
+credaudit scan -p . --formats html json csv
+```
 
-- CredAudit scans .har files (exported with content) and aggregates findings across entries.
-- Examples:
-  ```sh
-  credaudit scan -p traffic.har --formats html json csv
-  credaudit scan -p traffic.har --har-include responses --formats html
-  credaudit scan -p traffic.har --har-max-body-bytes 4194304
-  ```
+### JSON
 
-Built-in detections include:
+JSON contains full finding records and includes the raw `match` value. Treat JSON output as sensitive audit evidence.
 
-Built‑in detections include:
-- Private keys (PEM)
-- AWS Access Key IDs
-- AWS Secret Access Keys (contextual assignments)
-- GitHub tokens
-- JWTs (validated for structure)
-- Password/secret assignments (strict and loose)
-- Slack webhook URLs
-- High-entropy strings
-- Azure Storage SAS URLs (with signatures)
-- Stripe secret keys (`sk_live_...`, `sk_test_...`)
-- Database connection URIs with embedded password (Postgres/MySQL/Mongo/Redis)
- - Provider-specific tokens (enabled at Sensitivity L2/L3): Google API key (AIza...), Slack tokens (xox..), SendGrid (SG.xxx.yyy), GitLab PAT (glpat-...), npm token (npm_...), OpenAI key (sk-...), Telegram bot token (id:token), Twilio Account SID/Auth token
+Each finding includes:
 
-Run `credaudit rules` to list them.
+- `file`
+- `rule`
+- `match`
+- `redacted`
+- `context`
+- `severity`
+- `line`
 
-## Config File (`config.yaml`)
+### CSV
 
-Optional file loaded from the working directory by default.
+CSV is intended for safer sharing and spreadsheet review. It contains redacted values only.
+
+Columns:
+
+```text
+file, rule, redacted, severity, line, context
+```
+
+### SARIF
+
+SARIF 2.1.0 is useful for code scanning platforms and CI integrations.
+
+```sh
+credaudit scan -p ./src --formats sarif --fail-on High
+```
+
+### NDJSON Streaming
+
+NDJSON is useful for very large scans because findings are written while the scan is still running.
+
+```sh
+credaudit scan -p ./large-share --ndjson-out credaudit_out/findings.ndjson --formats html
+```
+
+Use `--ndjson-truncate` to start with a clean file:
+
+```sh
+credaudit scan -p ./large-share --ndjson-out credaudit_out/findings.ndjson --ndjson-truncate
+```
+
+By default, NDJSON contains redacted values only. Include raw matches only when required:
+
+```sh
+credaudit scan -p ./project --ndjson-out credaudit_out/findings.ndjson --ndjson-include-raw
+```
+
+Convert streamed findings later:
+
+```sh
+credaudit convert --in credaudit_out/findings.ndjson --out credaudit_out/full_report --formats html csv
+```
+
+## Configuration
+
+CredAudit loads `config.yaml` from the working directory by default. CLI flags override config values for the current run.
 
 Example:
 
@@ -312,125 +464,59 @@ entropy_threshold: 4.0
 cache_file: ".credaudit_cache.json"
 ```
 
-CLI flags override these values for the current run.
+Use `--config` to load a different file:
 
-## Caching
+```sh
+credaudit scan -p ./project --config ./client-config.yaml
+```
 
-A lightweight cache (`.credaudit_cache.json`) stores file size/mtime and findings:
-- Unchanged files reuse cached findings to speed up repeated scans.
-- Use `--no-cache` to force a full rescan.
+## Caching and Performance
+
+CredAudit stores file size, modification time, and findings in `.credaudit_cache.json` by default.
+
+- Unchanged files reuse cached findings.
+- Changed files are scanned again.
+- Use `--no-cache` when a clean scan is required.
+- Use `--workers` to control scanning process count.
+- Use `--threads` to control file discovery concurrency.
+- Use `--per-file-timeout` to prevent a single slow or corrupt file from stalling a run.
+
+Example for a large share:
+
+```sh
+credaudit scan -p /mnt/share --include-ext .txt .json .env .yaml --max-size 10 --sensitivity 1 --threads 32 --workers 8 --ndjson-out credaudit_out/findings.ndjson --formats html csv --timestamp --no-banner
+```
 
 ## Exit Codes
 
-- `0` — Success; threshold not exceeded.
-- `2` — `--fail-on` threshold met or exceeded.
+- `0` - scan completed and the `--fail-on` threshold was not met.
+- `2` - one or more findings met or exceeded the `--fail-on` severity threshold.
 
-## Versioning
+Example:
 
-- Print version: `credaudit --version` or `credaudit -V`.
-- Banner also shows the current version in interactive output.
-- To bump the version in code and packaging metadata:
-  ```sh
-  python scripts/bump_version.py 0.3.x
-  ```
-  This updates `credaudit/__init__.py` and `pyproject.toml`.
+```sh
+credaudit scan -p ./src --formats sarif json --fail-on Medium
+```
+
+## Security Notes
+
+- Treat all report outputs as sensitive unless reviewed and sanitized.
+- JSON includes raw matched secrets.
+- HTML can reveal raw values in the browser because the report embeds finding data.
+- CSV contains redacted values only.
+- NDJSON is redacted by default, but `--ndjson-include-raw` writes raw matches.
+- Remediate exposed credentials by rotating or revoking them, not only by removing them from files.
+
+## Version
+
+Current package version: `0.4.0`.
+
+Print the installed version:
+
+```sh
+credaudit --version
+```
 
 ## License
 
-MIT — see `LICENSE` for full text.
-
-## CI and Pre-Commit
-
-- GitHub Actions:
-  - A workflow at `.github/workflows/credaudit.yml` runs CredAudit on pushes/PRs.
-  - Publishes SARIF to GitHub code scanning and uploads HTML/JSON artifacts.
-  - To customize, edit the workflow (e.g., paths, formats, or fail conditions).
-
-- Pre-commit hook:
-  - Config at `.pre-commit-config.yaml` runs a fast scan only on staged files.
-  - Setup:
-    - `pip install -e .` (ensure `credaudit` is importable)
-    - `pip install pre-commit`
-    - `pre-commit install`
-  - Optional: set `CREDAUDIT_FAIL_ON` to `Low`, `Medium`, or `High` (default `High`).
-    - Example: `CREDAUDIT_FAIL_ON=Medium pre-commit run --all-files`
-
-
-## What's New (v0.3.14)
-
-- NDJSON streaming: `--ndjson-out` to append findings during scans; optional `--ndjson-truncate`, `--ndjson-flush-sec`, `--ndjson-buffer`, and `--ndjson-include-raw`.
-- Convert reports: `credaudit convert --in <file.ndjson> --out <out_base> --formats html csv` to generate reports from NDJSON without rescanning.
-
-### NDJSON (Live Output)
-
-- Stream findings to an append-only NDJSON file while scanning (any input type):
-  - `--ndjson-out PATH`: write one JSON object per line as findings are produced
-  - `--ndjson-truncate`: clear the NDJSON file at the start
-  - `--ndjson-flush-sec SEC`: flush at least every SEC seconds (default 1.0)
-  - `--ndjson-buffer N`: flush after N findings (default 100)
-  - `--ndjson-include-raw`: include raw matches (default is redacted-only)
-
-Examples:
-```sh
-# Stream while scanning a folder
-credaudit scan -p . --ndjson-out credaudit_out/findings.ndjson --formats html
-
-# Stream while scanning HAR (responses only)
-credaudit scan -p traffic.har --har-include responses --ndjson-out credaudit_out/live.ndjson --formats html
-```
-
-Convert NDJSON to reports later (no rescan):
-```sh
-credaudit convert --in credaudit_out/live.ndjson --out credaudit_out/live_report --formats html csv
-```
-
-### Big Scans (Large Shares)
-
-When scanning very large shares (hundreds of GBs or more), prefer NDJSON streaming and a light HTML summary.
-
-Linux/macOS:
-```sh
-# See what will be scanned (scope early)
-credaudit scan -p /mnt/share --list --include-ext .txt .json .env --no-banner
-
-# Stream findings + generate a light HTML summary
-credaudit scan -p /mnt/share \
-  --include-ext .txt .json .env \
-  --max-size 10 \
-  --sensitivity 1 \
-  --threads 32 --workers 8 \
-  --ndjson-out credaudit_out/findings.ndjson \
-  --formats html --timestamp --no-banner
-
-# Convert NDJSON to full HTML/CSV later (no rescan)
-credaudit convert --in credaudit_out/findings.ndjson --out credaudit_out/full_report --formats html csv
-```
-
-Windows (PowerShell):
-```powershell
-# Scope and list
-credaudit scan -p \\server\share --list --include-ext .txt .json .env --no-banner
-
-# Stream findings + light HTML
-credaudit scan -p \\server\share `
-  --include-ext .txt .json .env `
-  --max-size 10 `
-  --sensitivity 1 `
-  --threads 32 --workers 8 `
-  --ndjson-out credaudit_out\findings.ndjson `
-  --formats html --timestamp --no-banner
-
-# Convert later
-credaudit convert --in credaudit_out\findings.ndjson --out credaudit_out\full_report --formats html csv
-```
-
-NDJSON rotation (Linux/macOS via logrotate):
-```
-credaudit_out/*.ndjson {
-  size 50M
-  rotate 5
-  compress
-  missingok
-  copytruncate
-}
-```
+MIT. See `LICENSE` for details.
