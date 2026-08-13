@@ -358,6 +358,58 @@ You can also use numeric rule indexes from `credaudit rules`:
 credaudit ./project --only-rules 1 3 5
 ```
 
+## Folder Size Usage
+
+Use these starting points when choosing a scan command by folder size.
+
+### Light Folder
+
+For a small folder or a first quick check, use the default safe scan:
+
+```sh
+credaudit ./client-data
+```
+
+This uses fast defaults: `.txt` files only, a 10 KB per-file limit, short per-file timeout, generated-folder skips, redacted console output, and no raw-secret cache writes.
+
+Create shareable reports for the same light scan:
+
+```sh
+credaudit ./client-data --formats html csv json
+```
+
+### Medium Folder
+
+For a normal project folder where credentials may appear in common config and document files, widen the scope and save reports:
+
+```sh
+credaudit ./client-data --include-ext .txt .json .env .yaml .yml .docx .pdf .xlsx .har --max-size 25 --per-file-timeout 20 --workers 4 --formats html csv json
+```
+
+This keeps safe redaction enabled, scans common audit file types, skips files larger than 25 MB, gives each file up to 20 seconds, and writes review-friendly reports.
+
+Preview the files first if you want to confirm the scope:
+
+```sh
+credaudit ./client-data --include-ext .txt .json .env .yaml .yml .docx .pdf .xlsx .har --max-size 25 --list
+```
+
+### Huge Folder
+
+For a very large share or evidence dump, keep the scope tight, stream findings while the scan runs, and convert the NDJSON later:
+
+```sh
+credaudit ./large-share --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --sensitivity 1 --threads 32 --workers 8 --per-file-timeout 10 --ndjson-out credaudit_out/large_findings.ndjson --ndjson-truncate --no-banner
+```
+
+This scans high-value plaintext-style files, skips files larger than 10 MB, uses cautious rules to reduce noise, writes redacted findings to NDJSON during the scan, and avoids waiting for final report generation before findings are saved.
+
+Convert the streamed results into HTML and CSV after the scan:
+
+```sh
+credaudit convert --in credaudit_out/large_findings.ndjson --out credaudit_out/large_report --formats html csv
+```
+
 ## Scan Options
 
 Important scan flags:

@@ -322,7 +322,13 @@ def main(argv=None)->int:
         'scan',
         help='Run a scan',
         description='Run a scan and export reports',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
+            'Folder size examples:\n'
+            '  Light:  credaudit ./client-data\n'
+            '  Medium: credaudit ./client-data --include-ext .txt .json .env .yaml .yml .docx .pdf .xlsx .har --max-size 25 --per-file-timeout 20 --workers 4 --formats html csv json\n'
+            '  Huge:   credaudit ./large-share --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --sensitivity 1 --threads 32 --workers 8 --per-file-timeout 10 --ndjson-out credaudit_out/large_findings.ndjson --ndjson-truncate --no-banner\n'
+            '\n'
             'Environment:\n'
             '  CREDAUDIT_HTML_MAX_ROWS   Limit rows rendered in HTML report (default: 500)\n'
             '\n'
