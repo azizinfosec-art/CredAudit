@@ -20,10 +20,42 @@ It is designed for security reviews, client audits, CI checks, and quick evidenc
 ## Requirements
 
 - Python 3.10 or later.
+- Supported operating systems: Windows, Linux, and macOS. Kali Linux is supported, but it is not required.
 - Package dependencies are installed automatically from `pyproject.toml`.
 - RAR archive scanning may require an external `unrar` or `unar` utility depending on the operating system.
 
 ## Installation
+
+### Windows
+
+Install Python 3.10 or later from `python.org` or the Microsoft Store. During installation, enable the option to add Python to `PATH`.
+
+PowerShell or Windows Terminal:
+
+```powershell
+python --version
+python -m pip install --upgrade pip
+python -m pip install .
+credaudit --version
+```
+
+Command Prompt:
+
+```bat
+python --version
+python -m pip install --upgrade pip
+python -m pip install .
+credaudit --version
+```
+
+If `credaudit` is not recognized after installation, run it through Python:
+
+```bat
+python -m credaudit --version
+python -m credaudit scan -p C:\path\to\client-data --formats html json csv
+```
+
+### Linux, Kali Linux, and macOS
 
 Install from this repository:
 
