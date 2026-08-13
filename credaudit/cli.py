@@ -11,6 +11,26 @@ def _shorten(value, limit=80):
         return text
     return text[: max(0, limit - 3)] + '...'
 
+def _green(value):
+    if sys.stdout.isatty() and not os.environ.get('NO_COLOR'):
+        return f"\033[32m{value}\033[0m"
+    return value
+
+def _color_severity(value, severity=None):
+    text = str(value or '')
+    if not sys.stdout.isatty() or os.environ.get('NO_COLOR'):
+        return text
+    sev = str(severity or text).strip()
+    colors = {
+        'Low': '34',
+        'Medium': '38;5;208',
+        'High': '31',
+    }
+    code = colors.get(sev)
+    if not code:
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
 def print_console_findings(findings, limit=50):
     safe = redact_finding_records(findings)
     if not safe:
@@ -23,11 +43,12 @@ def print_console_findings(findings, limit=50):
     print("-" * 100)
     for f in shown:
         sev = _shorten(f.get('severity', ''), 8)
+        sev_display = _color_severity(f"{sev:<8}", sev)
         rule = _shorten(f.get('rule', ''), 24)
         line = _shorten(f.get('line', ''), 6)
         value = _shorten(f.get('redacted', ''), 24)
         path = _shorten(f.get('file', ''), 80)
-        print(f"{sev:<8} {rule:<24} {line:<6} {path:<80} {value}")
+        print(f"{sev_display} {rule:<24} {line:<6} {path:<80} {_green(value)}")
     if len(safe) > len(shown):
         print(f"... showing {len(shown)} of {len(safe)} findings. Use --console-limit to show more.")
     print("Use --formats html csv json to save reports.")
