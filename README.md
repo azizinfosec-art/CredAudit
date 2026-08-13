@@ -43,6 +43,8 @@ After installation, use the `credaudit` command. You can also run it as a module
 python -m credaudit --version
 ```
 
+On Windows, PowerShell is not required. You can run CredAudit from PowerShell, Command Prompt, Windows Terminal, or Git Bash as long as Python and the `credaudit` command are available on `PATH`.
+
 ## Quick Start
 
 Scan a file and create the default reports:
@@ -97,6 +99,12 @@ Use `--timestamp` when you want report files such as `report_YYYYMMDD_HHMMSS.htm
    Windows PowerShell:
 
    ```powershell
+   start credaudit_out\report.html
+   ```
+
+   Windows Command Prompt:
+
+   ```bat
    start credaudit_out\report.html
    ```
 
@@ -398,6 +406,13 @@ On Windows PowerShell:
 
 ```powershell
 $env:CREDAUDIT_HTML_MAX_ROWS = "1000"
+credaudit scan -p . --formats html json csv
+```
+
+On Windows Command Prompt:
+
+```bat
+set CREDAUDIT_HTML_MAX_ROWS=1000
 credaudit scan -p . --formats html json csv
 ```
 
