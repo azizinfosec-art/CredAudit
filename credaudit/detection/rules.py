@@ -88,6 +88,12 @@ def build_rules(level: Optional[int] = None) -> List['Rule']:
             "admin\nmISX%%13402",
         ))
         rules.append(Rule(
+            "CredentialPair",
+            re.compile(r"$^"),
+            "Same-line username:password credential pair",
+            "admin:Secret123!",
+        ))
+        rules.append(Rule(
             "APIKeyGeneric",
             re.compile(r"\b(sk|pk)-[A-Za-z0-9]{10,}\b"),
             "Generic API key",

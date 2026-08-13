@@ -32,16 +32,22 @@ def _color_severity(value, severity=None):
         return text
     return f"\033[{code}m{text}\033[0m"
 
-def print_console_findings(findings, limit=50):
+def _format_confidence(value):
+    try:
+        return f"{int(value)}%"
+    except Exception:
+        return ""
+
+def print_console_findings(findings, limit=50, show_evidence=False):
     safe = redact_finding_records(findings)
     if not safe:
         print("No findings.")
         return
     shown = safe[: max(0, int(limit or 0))]
     print("\nFindings (redacted)")
-    print("-" * 100)
-    print(f"{'Severity':<8} {'Rule':<24} {'Line':<6} {'File':<80} Value")
-    print("-" * 100)
+    print("-" * 112)
+    print(f"{'Severity':<8} {'Rule':<24} {'Line':<6} {'File':<80} {'Value':<24} Score")
+    print("-" * 112)
     for f in shown:
         sev = _shorten(f.get('severity', ''), 8)
         sev_display = _color_severity(f"{sev:<8}", sev)
@@ -49,7 +55,12 @@ def print_console_findings(findings, limit=50):
         line = _shorten(f.get('line', ''), 6)
         value = _shorten(f.get('redacted', ''), 24)
         path = _shorten(f.get('file', ''), 80)
-        print(f"{sev_display} {rule:<24} {line:<6} {path:<80} {_green(value)}")
+        score = _format_confidence(f.get('confidence', ''))
+        print(f"{sev_display} {rule:<24} {line:<6} {path:<80} {_green(value):<24} {score}")
+        if show_evidence:
+            evidence = f.get('evidence') or []
+            if isinstance(evidence, list) and evidence:
+                print(f"  Evidence: {_shorten('; '.join(str(x) for x in evidence), 140)}")
     if len(safe) > len(shown):
         print(f"... showing {len(shown)} of {len(safe)} findings. Use --console-limit to show more.")
     print("Use --formats html csv json to save reports.")
@@ -187,6 +198,10 @@ Advanced Features:
 Rule Selection:
   --only-rules R1 [R2 ...]  Restrict scanning to specific rule names or indices (from `credaudit rules`).
                             Accepts comma- or space-separated values, e.g., "PasswordAssignment,HighEntropyString" or "1 4 6".
+Evidence:
+  --high-confidence      Show/export only findings with confidence >= 80
+  --min-confidence N     Show/export only findings with confidence >= N (0-100)
+  --show-evidence        Print confidence evidence reasons in console mode
 Sensitivity:
   --sensitivity {1,2,3}   Rule sensitivity: 1=cautious, 2=balanced (default), 3=aggressive
                            Aliases: L1/L2/L3 or low/medium/high
@@ -259,6 +274,12 @@ def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('--list', action='store_true', help='Dry-run: only list files')
     p.add_argument('--console-limit', type=int, default=50,
                    help='Max findings shown on screen when --formats is not used')
+    p.add_argument('--high-confidence', action='store_true',
+                   help='Show/export only findings with confidence >= 80')
+    p.add_argument('--min-confidence', type=int,
+                   help='Show/export only findings with confidence >= N (0-100)')
+    p.add_argument('--show-evidence', action='store_true',
+                   help='Print confidence evidence reasons in console output')
     p.add_argument('--timestamp', dest='timestamp', action='store_true', default=None,
                    help='Append timestamp to report filenames (default when --formats is used)')
     p.add_argument('--no-timestamp', dest='timestamp', action='store_false',
@@ -381,6 +402,10 @@ def main(argv=None)->int:
                             'redacted': rec.get('redacted', rec.get('value','')),
                             'context': rec.get('context',''),
                             'severity': rec.get('severity','Low'),
+                            'confidence': rec.get('confidence', 0),
+                            'finding_class': rec.get('finding_class', ''),
+                            'validity': rec.get('validity', ''),
+                            'evidence': rec.get('evidence', []),
                             'line': rec.get('line',''),
                         }
                         out.append(rec2)
@@ -402,6 +427,11 @@ def main(argv=None)->int:
             args.safe = True
         if not getattr(args, 'full', False):
             args.fast = True
+        min_confidence = getattr(args, 'min_confidence', None)
+        if getattr(args, 'high_confidence', False):
+            min_confidence = max(80, int(min_confidence or 0))
+        if min_confidence is not None and not (0 <= int(min_confidence) <= 100):
+            parser.error("--min-confidence must be between 0 and 100")
         ignore_globs = load_ignore_file(args.ignore_file) if args.ignore_file else []
         target_path = args.path or args.target or '.'
         target_is_file = os.path.isfile(target_path)
@@ -466,6 +496,7 @@ def main(argv=None)->int:
                                         ndjson_include_raw=bool(getattr(args,'ndjson_include_raw',False)),
                                         per_file_timeout=per_file_timeout,
                                         safe_report=bool(getattr(args,'safe',False)),
+                                        min_confidence=min_confidence,
                                         only_rules=(
                                             (lambda tokens: (
                                                 (lambda names: list(dict.fromkeys([
@@ -489,11 +520,12 @@ def main(argv=None)->int:
         sens_txt = {1:'L1/cautious',2:'L2/balanced',3:'L3/aggressive'}.get(rule_level or 2, 'L2/balanced')
         mode_txt = f"{'fast' if args.fast else 'standard'} {'safe/redacted' if getattr(args, 'safe', False) else 'raw'}"
         if console_mode:
-            print_console_findings(findings, getattr(args, 'console_limit', 50))
+            print_console_findings(findings, getattr(args, 'console_limit', 50), bool(getattr(args, 'show_evidence', False)))
             report_txt = 'console only'
         else:
             report_txt = f"{args.output_dir} (formats: {fmts})"
-        print(f"Scanned {len(files)} files | Findings: {len(findings)} (H:{cH} M:{cM} L:{cL}) | Sensitivity: {sens_txt} | Mode: {mode_txt} | Time: {elapsed:.2f}s | Reports: {report_txt}")
+        conf_txt = f" | Min confidence: {min_confidence}%" if min_confidence is not None else ""
+        print(f"Scanned {len(files)} files | Findings: {len(findings)} (H:{cH} M:{cM} L:{cL}) | Sensitivity: {sens_txt}{conf_txt} | Mode: {mode_txt} | Time: {elapsed:.2f}s | Reports: {report_txt}")
         if not console_mode:
             print_report_links(args.output_dir, formats, timestamp_reports, t_start)
         return code

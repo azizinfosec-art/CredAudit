@@ -16,6 +16,10 @@ Contents:
   - `file` (string): file path or virtual ID (`archive.zip!path/inside` or `URL#response`).
   - `rule` (string): rule name (e.g., `PasswordAssignment`).
   - `severity` (string): one of `Low`, `Medium`, `High`.
+  - `confidence` (number): evidence score from `0` to `100`.
+  - `finding_class` (string): `confirmed_format`, `likely`, `possible`, or `indicator`.
+  - `validity` (string): `not_applicable`, `unknown`, or a future verifier status.
+  - `evidence` (array): redaction-safe reasons used to assign the confidence score.
   - `redacted` (string): masked representation of the secret.
   - `context` (string): surrounding text snippet (single line, truncated, with matched secret redacted when possible).
   - `line` (number|string): 1‑based line index (string or number). May be empty when unavailable.
@@ -23,7 +27,7 @@ Contents:
 
 Example line:
 ```
-{"ts":"2026-08-13T07:45:12+00:00","file":"C:/repo/.env","rule":"PasswordAssignment","severity":"Medium","redacted":"A****4","context":"password: A****4","line":3}
+{"ts":"2026-08-13T07:45:12+00:00","file":"C:/repo/.env","rule":"PasswordAssignment","severity":"Medium","confidence":92,"finding_class":"likely","validity":"not_applicable","evidence":["password-like keyword with explicit assignment"],"redacted":"A****4","context":"password: A****4","line":3}
 ```
 
 ## JSON (final report)
@@ -36,6 +40,10 @@ Example line:
   - `redacted` (string)
   - `context` (string)
   - `severity` (string): `Low` | `Medium` | `High`
+  - `confidence` (number): evidence score from `0` to `100`
+  - `finding_class` (string): `confirmed_format` | `likely` | `possible` | `indicator`
+  - `validity` (string): `not_applicable` | `unknown` | future verifier status
+  - `evidence` (array): redaction-safe confidence reasons
   - `line` (number|string)
 
 Example (trimmed):
@@ -48,6 +56,10 @@ Example (trimmed):
     "redacted":"A****4",
     "context":"password: A****4",
     "severity":"Medium",
+    "confidence":92,
+    "finding_class":"likely",
+    "validity":"not_applicable",
+    "evidence":["password-like keyword with explicit assignment"],
     "line":3
   }
 ]
@@ -56,7 +68,7 @@ Example (trimmed):
 ## CSV (final report)
 
 Columns (in order):
-- `file`, `rule`, `redacted`, `severity`, `line`, `context`
+- `file`, `rule`, `redacted`, `severity`, `confidence`, `finding_class`, `validity`, `evidence`, `line`, `context`
 
 Notes:
 - CSV contains redacted values and redacted context snippets.
@@ -77,6 +89,12 @@ Notes:
           "ruleId": "<rule>",
           "level": "error|warning|note",   // High=error, Medium=warning, Low=note
           "message": { "text": "<redacted>" },
+          "properties": {
+            "confidence": 92,
+            "finding_class": "likely",
+            "validity": "not_applicable",
+            "evidence": ["password-like keyword with explicit assignment"]
+          },
           "locations": [ {
             "physicalLocation": {
               "artifactLocation": { "uri": "<abs-path-or-virtual>" },

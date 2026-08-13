@@ -160,6 +160,7 @@
               <th class="sortable" data-k="severity">Severity<span class="sortdir"></span></th>
               <th class="sortable" data-k="file">File<span class="sortdir"></span></th>
               <th class="sortable" data-k="rule">Rule<span class="sortdir"></span></th>
+              <th class="sortable" data-k="confidence">Score<span class="sortdir"></span></th>
               <th>Value</th>
               <th class="sortable" data-k="line">Line<span class="sortdir"></span></th>
               <th>Context</th>
@@ -266,6 +267,7 @@
           if(sortKey==='severity'){ va=sevRank[a.severity]||0; vb=sevRank[b.severity]||0; }
           else if(sortKey==='file'){ va=(a.file||'').toLowerCase(); vb=(b.file||'').toLowerCase(); }
           else if(sortKey==='rule'){ va=(a.rule||'').toLowerCase(); vb=(b.rule||'').toLowerCase(); }
+          else if(sortKey==='confidence'){ va=parseInt(a.confidence||0)||0; vb=parseInt(b.confidence||0)||0; }
           else if(sortKey==='line'){ va=parseInt(a.line||0)||0; vb=parseInt(b.line||0)||0; }
           else { va=''; vb=''; }
           return (va>vb?1:va<vb?-1:0) * (sortDir==='asc'?1:-1);
@@ -281,6 +283,7 @@
             `<td class="nowrap"><span class="sevBadge">${sev}</span></td>`+
             `<td class="path wrap">${(f.file||'').replace(/</g,'&lt;')}</td>`+
             `<td class="wrap">${(f.rule||'').replace(/</g,'&lt;')}</td>`+
+            `<td class="nowrap">${(f.confidence||0)}%</td>`+
             `<td class="wrap">`+
               `<div style="display:flex;align-items:center;gap:8px">`+
                 `<code class="val" data-raw="${(f.match||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}" data-redacted="${(f.redacted||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}">${(f.redacted||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</code>`+
@@ -335,9 +338,9 @@
 
     function copyCsv(all){
       const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
-      const header=['severity','file','rule','value','line','context']; const lines=[header.map(esc).join(',')];
+      const header=['severity','file','rule','confidence','finding_class','validity','value','line','context']; const lines=[header.map(esc).join(',')];
       const start = all? 0 : (page-1)*PAGE_SIZE; const end = all? filtered.length : Math.min(filtered.length,start+PAGE_SIZE);
-      for(let i=start;i<end;i++){ const f=filtered[i]; const row=[ f.severity||'', f.file||'', f.rule||'', ((showRaw && !SAFE_REPORT)?(f.match||''):(f.redacted||'')), f.line||'', f.context||'' ]; lines.push(row.map(esc).join(',')); }
+      for(let i=start;i<end;i++){ const f=filtered[i]; const row=[ f.severity||'', f.file||'', f.rule||'', f.confidence||0, f.finding_class||'', f.validity||'', ((showRaw && !SAFE_REPORT)?(f.match||''):(f.redacted||'')), f.line||'', f.context||'' ]; lines.push(row.map(esc).join(',')); }
       copyToClipboard(lines.join('\r\n'));
       toast(all? 'CSV (filtered) copied' : 'CSV (page) copied');
     }

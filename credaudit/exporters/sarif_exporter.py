@@ -10,6 +10,12 @@ def export_sarif(findings, p):
             "ruleId": f.get("rule","Secret"),
             "level": LEVEL_MAP.get(f.get("severity","Low"),"note"),
             "message": {"text": f.get("redacted","[redacted]")},
+            "properties": {
+                "confidence": f.get("confidence", 0),
+                "finding_class": f.get("finding_class", ""),
+                "validity": f.get("validity", ""),
+                "evidence": f.get("evidence", []),
+            },
             "locations": [{
                 "physicalLocation": {
                     "artifactLocation": {"uri": os.path.abspath(f.get("file","")).replace("\\","/")},

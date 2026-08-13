@@ -264,7 +264,27 @@ Scan one Excel workbook:
 credaudit ./client-credentials.xlsx
 ```
 
-Detect a username/password pair in a text file:
+Detect same-line `username:password` pairs in `.txt` files up to 5 MB:
+
+```text
+admin:Secret123!
+alice@example.com:password
+```
+
+Run:
+
+```sh
+credaudit ./client-data --include-ext .txt --max-size 5 --only-rules CredentialPair
+```
+
+Expected CLI finding style:
+
+```text
+High  CredentialPair  1  client-credentials.txt  Se****3!
+High  CredentialPair  2  client-credentials.txt  p****d
+```
+
+Detect a two-line username/password pair in a text file:
 
 ```text
 admin
@@ -284,7 +304,7 @@ High  UsernameNearPassword  1  client-credentials.txt  a****n
 Low   PasswordCandidate     2  client-credentials.txt  mI****02
 ```
 
-`UsernameNearPassword` is a contextual rule. It is reported during a normal scan when a username-like line appears immediately before a detected password or password candidate.
+`CredentialPair` detects compact same-line credential dumps such as `admin:Secret123!`. `UsernameNearPassword` is a contextual rule. It is reported during a normal scan when a username-like line appears immediately before a detected password or password candidate.
 
 Scan only `.txt` files in a folder:
 
@@ -441,6 +461,9 @@ Important scan flags:
 - `--safe, --redacted-only` - write redacted-only reports and skip raw-secret cache writes. This is the default.
 - `--raw` - allow raw matched values in reports and cache. Use only for internal remediation.
 - `--console-limit N` - maximum findings to print on screen when `--formats` is omitted. Default: `50`.
+- `--high-confidence` - show/export only findings with confidence score `>= 80`.
+- `--min-confidence N` - show/export only findings with confidence score `>= N` where `N` is `0-100`.
+- `--show-evidence` - print the evidence reasons behind each confidence score in console mode.
 - `--fast` - use fast directory defaults: `.txt` only, 10 KB max files, 2-second per-file timeout, generated-folder skips, and up to 4 workers. This is the default. Explicit file targets are scanned directly.
 - `--full, --standard` - use the full configured file scope instead of fast defaults.
 - `--include-ext EXT [...]` - scan only these extensions.
@@ -489,6 +512,30 @@ Example:
 credaudit ./project --sensitivity 1
 ```
 
+## Confidence And Evidence
+
+Each finding includes a confidence score from `0` to `100`, a `finding_class`, a `validity` value, and an `evidence` list explaining why CredAudit reported it. Use these fields to reduce false positives during review.
+
+Show only high-confidence findings:
+
+```sh
+credaudit ./client-data --high-confidence
+```
+
+Choose your own evidence threshold:
+
+```sh
+credaudit ./client-data --min-confidence 85
+```
+
+Print the evidence reasons in console mode:
+
+```sh
+credaudit ./client-data --min-confidence 80 --show-evidence
+```
+
+For same-line credential dumps, a high score usually means the line is compact, the left side looks username-like, the right side looks password-like or is a common weak password, and the file context supports credential evidence.
+
 ## What CredAudit Scans
 
 When `PATH` is a directory, the default `credaudit PATH` and `credaudit scan PATH` commands scan `.txt` files only and skip files larger than 10 KB. When `PATH` is a file, CredAudit scans that file directly.
@@ -522,7 +569,7 @@ CredAudit groups its built-in rules into a few practical categories:
 - Password and secret assignments - detects values written near keywords such as `password`, `secret`, `api_key`, and `token`.
 - Credential indicators - detects username/login assignments and lines that mention `password` even when no secret value is present.
 - Standalone password candidates - detects values such as `myo@193` and `mISX%%13402` when they look like password strings even without a nearby keyword.
-- Credential pairs in text files - detects username-like lines immediately before password findings.
+- Credential pairs in text files - detects compact same-line `username:password` entries and username-like lines immediately before password findings.
 - Database credentials - detects connection strings that include usernames and passwords.
 - JWTs - detects JSON Web Tokens with valid token structure.
 - High-entropy values - detects long random-looking strings that may be secrets.
@@ -532,6 +579,8 @@ Use sensitivity level `1` for a quieter, high-confidence scan. Use the default s
 Username or login assignments are reported as low severity indicators. Lines that mention `password` without a detected value are also reported as low severity indicators. When a real password value is detected on the same line, CredAudit keeps the stronger password finding instead of showing both.
 
 Standalone password candidates are reported as low severity. A candidate must be a compact token, at least 6 characters long, containing letters, at least one digit, and either a symbol or mixed uppercase/lowercase. Email addresses, URLs, package-like names, placeholders, and normal `key=value` assignments are filtered out before this rule is reported.
+
+Same-line text credential pairs such as `admin:Secret123!` are reported as high-severity `CredentialPair` findings. The password side is used as the matched value so safe reports can redact it while keeping enough context to locate the account.
 
 If a password finding appears on a line and the line immediately before it looks like a username, CredAudit reports that previous line as `UsernameNearPassword` with high severity. This catches common text-file pairs such as:
 
@@ -775,7 +824,7 @@ credaudit scan ./src --full --safe --formats sarif json --fail-on Medium
 
 ## Version
 
-Current package version: `0.5.0`.
+Current package version: `0.6.0`.
 
 Print the installed version:
 

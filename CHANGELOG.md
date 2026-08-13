@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning (SemVer). During 0.x, breaking changes are noted but use MINOR version bumps unless 1.0 is proposed.
 
+## [0.6.0] - 2026-08-13 (Asia/Riyadh, GMT+3)
+
+### Added
+- CLI: `--high-confidence`, `--min-confidence`, and `--show-evidence` for confidence-based triage.
+- Rules: high-severity `CredentialPair` for compact same-line `username:password` text entries.
+- Reports: JSON, CSV, NDJSON, SARIF, and HTML now include confidence/evidence metadata for findings.
+- Tests: coverage for same-line credential pairs, confidence filtering, and console evidence output.
+
+### Changed
+- Scanner findings now include `confidence`, `finding_class`, `validity`, and redaction-safe `evidence` fields.
+- Cached findings without confidence metadata are rescanned when confidence filtering is requested.
+
 ## [0.5.0] - 2026-08-13 (Asia/Riyadh, GMT+3)
 
 ### Added
@@ -70,5 +82,6 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Security
 - None
 
+[0.6.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.3.16...v0.4.0

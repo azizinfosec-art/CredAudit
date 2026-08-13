@@ -397,6 +397,105 @@ class TestCliScan(unittest.TestCase):
             self.assertEqual([f.get("match") for f in findings_by_line.get(7, [])], ["john@example.com"])
             self.assertEqual([f.get("rule") for f in findings_by_line.get(8, [])], ["PasswordCandidate"])
 
+    def test_same_line_credential_pairs_in_small_txt_files(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(
+                tmp / "pairs.txt",
+                "\n".join([
+                    "admin:Secret123!",
+                    "alice@example.com:password",
+                    "username: alice",
+                    "Content-Type:text/html",
+                    "module:ClassName",
+                    "https://example.com/login",
+                ]) + "\n",
+            )
+            write_file(tmp / "large.txt", "oversize:Secret123!\n" + ("A" * (5 * 1024 * 1024)))
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--include-ext", ".txt",
+                "--max-size", "5",
+                "--only-rules", "CredentialPair",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            findings_by_line = {f.get("line"): f for f in arr}
+            self.assertEqual({f.get("rule") for f in arr}, {"CredentialPair"})
+            self.assertEqual(findings_by_line.get(1, {}).get("match"), "Secret123!")
+            self.assertEqual(findings_by_line.get(2, {}).get("match"), "password")
+            self.assertNotIn(3, findings_by_line)
+            self.assertNotIn(4, findings_by_line)
+            self.assertNotIn(5, findings_by_line)
+            self.assertNotIn(6, findings_by_line)
+            files = {Path(f.get("file", "")).name for f in arr}
+            self.assertEqual(files, {"pairs.txt"})
+
+    def test_min_confidence_filters_and_exports_evidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(
+                tmp / "client-creds.txt",
+                "\n".join([
+                    "admin:Secret123!",
+                    "password: Abcd1234",
+                    "mISX%%13402",
+                    "please rotate password soon",
+                ]) + "\n",
+            )
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--include-ext", ".txt",
+                "--max-size", "5",
+                "--min-confidence", "80",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            self.assertTrue(arr)
+            self.assertTrue(all(int(f.get("confidence", 0)) >= 80 for f in arr), arr)
+            rules = {f.get("rule") for f in arr}
+            self.assertIn("CredentialPair", rules)
+            self.assertIn("PasswordAssignment", rules)
+            self.assertNotIn("PasswordCandidate", rules)
+            self.assertNotIn("PasswordKeyword", rules)
+            credential = next(f for f in arr if f.get("rule") == "CredentialPair")
+            self.assertEqual(credential.get("finding_class"), "likely")
+            self.assertEqual(credential.get("validity"), "not_applicable")
+            self.assertTrue(credential.get("evidence"))
+            self.assertTrue(any("username:password" in x for x in credential.get("evidence", [])))
+
+    def test_high_confidence_console_can_show_evidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "client-creds.txt", "admin:Secret123!\nmISX%%13402\n")
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--include-ext", ".txt",
+                "--max-size", "5",
+                "--high-confidence",
+                "--show-evidence",
+                "--no-cache",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            self.assertIn("Score", res.stdout)
+            self.assertIn("Evidence:", res.stdout)
+            self.assertIn("CredentialPair", res.stdout)
+            self.assertNotIn("PasswordCandidate", res.stdout)
+
     def test_shortcut_without_formats_prints_redacted_console(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)

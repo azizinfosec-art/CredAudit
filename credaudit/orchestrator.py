@@ -139,6 +139,20 @@ def _scan_file(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_bo
         return p, [], 'error'
 
 
+def _confidence_value(record: dict) -> int:
+    try:
+        return int(record.get("confidence", 0) or 0)
+    except Exception:
+        return 0
+
+
+def _filter_by_confidence(records: List[dict], min_confidence: int | None = None) -> List[dict]:
+    if min_confidence is None:
+        return list(records or [])
+    threshold = max(0, min(100, int(min_confidence)))
+    return [r for r in (records or []) if _confidence_value(r) >= threshold]
+
+
 def scan_paths(
     paths: List[str],
     output_dir: str,
@@ -164,6 +178,7 @@ def scan_paths(
     per_file_timeout: float | None = None,
     only_rules = None,
     safe_report: bool = False,
+    min_confidence: int | None = None,
 ):
     if formats:
         os.makedirs(output_dir, exist_ok=True)
@@ -183,9 +198,15 @@ def scan_paths(
             if cache and cache.is_unchanged(p):
                 cached = cache.get_findings(p)
                 if cached:
-                    findings_all.extend(cached)
+                    if min_confidence is not None and any("confidence" not in rec for rec in cached):
+                        if verbose:
+                            print(f"[CACHE] unchanged {p}, but cached findings lack confidence; queueing for scan")
+                        to_scan.append(p)
+                        continue
+                    cached_visible = _filter_by_confidence(cached, min_confidence)
+                    findings_all.extend(cached_visible)
                     if verbose:
-                        print(f"[CACHE] reused {len(cached)} findings from {p}")
+                        print(f"[CACHE] reused {len(cached_visible)} findings from {p}")
                 else:
                     if verbose:
                         print(f"[CACHE] unchanged {p}, but no cached findings; queueing for scan")
@@ -374,10 +395,11 @@ def scan_paths(
                                             fp = rec.get('file')
                                             if fp in path_alias:
                                                 rec['file'] = path_alias[fp]
-                                    findings_all.extend(f)
+                                    visible_findings = _filter_by_confidence(f, min_confidence)
+                                    findings_all.extend(visible_findings)
                                     if nd_writer is not None:
                                         try:
-                                            nd_writer.add_findings(f)
+                                            nd_writer.add_findings(visible_findings)
                                         except Exception:
                                             pass
                                 if cache_enabled and cache:
