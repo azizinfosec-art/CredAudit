@@ -238,7 +238,7 @@ Runs the scanner against a file or directory with full control over options.
 credaudit scan ./path-to-scan
 ```
 
-The path can be positional (`credaudit scan ./project`) or passed with `-p` (`credaudit scan -p ./project`). This command is safe and fast by default. Add `--full` to use the full configured file scope, and add `--raw` only when raw findings are intentionally needed.
+The path can be positional (`credaudit scan ./project`) or passed with `-p` (`credaudit scan -p ./project`). This command is safe and fast by default. Directory scans use the small fast scope, while an explicit file target is scanned directly. Add `--full` to use the full configured file scope for directories, and add `--raw` only when raw findings are intentionally needed.
 
 ### `credaudit convert`
 
@@ -256,6 +256,12 @@ Scan one text file:
 
 ```sh
 credaudit ./notes.txt
+```
+
+Scan one Excel workbook:
+
+```sh
+credaudit ./client-credentials.xlsx
 ```
 
 Detect a username/password pair in a text file:
@@ -363,7 +369,7 @@ Important scan flags:
 - `--safe, --redacted-only` - write redacted-only reports and skip raw-secret cache writes. This is the default.
 - `--raw` - allow raw matched values in reports and cache. Use only for internal remediation.
 - `--console-limit N` - maximum findings to print on screen when `--formats` is omitted. Default: `50`.
-- `--fast` - use fast defaults: `.txt` only, 10 KB max files, 2-second per-file timeout, generated-folder skips, and up to 4 workers. This is the default.
+- `--fast` - use fast directory defaults: `.txt` only, 10 KB max files, 2-second per-file timeout, generated-folder skips, and up to 4 workers. This is the default. Explicit file targets are scanned directly.
 - `--full, --standard` - use the full configured file scope instead of fast defaults.
 - `--include-ext EXT [...]` - scan only these extensions.
 - `--include-glob PATTERN` - include files matching a glob. Can be repeated.
@@ -413,7 +419,7 @@ credaudit ./project --sensitivity 1
 
 ## What CredAudit Scans
 
-The default `credaudit PATH` and `credaudit scan PATH` commands scan `.txt` files only and skip files larger than 10 KB.
+When `PATH` is a directory, the default `credaudit PATH` and `credaudit scan PATH` commands scan `.txt` files only and skip files larger than 10 KB. When `PATH` is a file, CredAudit scans that file directly.
 
 The scanner can also scan these extensions when you pass `--full` to use the configured scope, or when you pass `--include-ext` / `--include-glob` explicitly:
 
@@ -432,7 +438,7 @@ Extraction behavior:
 - Plaintext files are read with UTF-8, UTF-16, and Latin-1 fallbacks.
 - DOCX files are scanned from paragraph text.
 - PDF files are scanned through `pdfminer.six` text extraction.
-- XLSX files are scanned from cell values, including simple key/value rows such as `password: value`.
+- XLSX files are scanned from cell values, including simple key/value rows such as `password: value` and table layouts where `password` appears among column headers above the value.
 - HAR files are scanned from textual request and response bodies.
 
 ## Detection Coverage
@@ -657,7 +663,7 @@ credaudit ./project --config ./client-config.yaml
 
 CredAudit avoids writing a findings cache in safe mode so raw matches are not stored locally by accident. When `--raw` is used, CredAudit can store file size, modification time, and findings in `.credaudit_cache.json` to speed up repeated internal scans.
 
-- The default command path uses fast mode: `.txt` only, 10 KB max files, a 2-second per-file timeout, generated-folder skips, and up to 4 workers.
+- The default command path uses fast mode for directory scans: `.txt` only, 10 KB max files, a 2-second per-file timeout, generated-folder skips, and up to 4 workers. Explicit file targets are scanned directly.
 - In raw mode, unchanged files reuse cached findings.
 - In raw mode, changed files are scanned again.
 - Use `--no-cache` when a clean scan is required.

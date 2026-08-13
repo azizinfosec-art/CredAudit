@@ -18,6 +18,48 @@ def write_file(p: Path, content: str):
     return p
 
 
+def write_xlsx_with_password_table(p: Path):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Credentials"
+    ws["Y1"] = "password"
+    ws["Z1"] = "user "
+    ws["Y2"] = "apxc@s0203"
+    ws["Z2"] = "ahmed"
+    ws2 = wb.create_sheet("Loose")
+    ws2["B1"] = "KZMmzxw0@saa"
+    ws2["C1"] = "Bader"
+    wb.save(p)
+    return p
+
+
+def write_xlsx_with_mixed_password_headers(p: Path):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Inventory"
+    ws.append(["System", "URL", "username", "password"])
+    ws.append(["prod", "https://prod.example", "alice", "Stage123!"])
+    ws.append(["backup", "https://backup.example", "bob", "Backup456!"])
+    wb.save(p)
+    return p
+
+
+def write_xlsx_with_sparse_password_row(p: Path):
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sparse"
+    ws["A1"] = "password"
+    ws["C1"] = "NotAdjacent123!"
+    wb.save(p)
+    return p
+
+
 def load_json_array(p: Path):
     with p.open("r", encoding="utf-8") as f:
         return json.load(f)
@@ -177,6 +219,79 @@ class TestCliScan(unittest.TestCase):
             arr = load_json_array(out / "report.json")
             files = {Path(f.get("file", "")).name for f in arr}
             self.assertIn("secret.yaml", files)
+
+    def test_explicit_xlsx_file_scans_password_table_by_default(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            workbook = write_xlsx_with_password_table(tmp / "MyFile.xlsx")
+            out = tmp / "out"
+            res = run_cli([
+                str(workbook),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            self.assertTrue(
+                any(
+                    f.get("rule") == "PasswordAssignment" and f.get("match") == "apxc@s0203"
+                    for f in arr
+                ),
+                arr,
+            )
+            self.assertFalse(
+                any(f.get("rule") == "PasswordAssignment" and f.get("match") == "user" for f in arr),
+                arr,
+            )
+
+    def test_xlsx_mixed_headers_scan_multiple_password_rows(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            workbook = write_xlsx_with_mixed_password_headers(tmp / "mixed.xlsx")
+            out = tmp / "out"
+            res = run_cli([
+                str(workbook),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            password_matches = {
+                f.get("match")
+                for f in arr
+                if f.get("rule") == "PasswordAssignment"
+            }
+            self.assertIn("Stage123!", password_matches)
+            self.assertIn("Backup456!", password_matches)
+
+    def test_xlsx_sparse_row_does_not_pair_non_adjacent_password_value(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            workbook = write_xlsx_with_sparse_password_row(tmp / "sparse.xlsx")
+            out = tmp / "out"
+            res = run_cli([
+                str(workbook),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            self.assertFalse(
+                any(
+                    f.get("rule") == "PasswordAssignment" and f.get("match") == "NotAdjacent123!"
+                    for f in arr
+                ),
+                arr,
+            )
 
     def test_overlapping_rules_are_deduplicated_by_secret_value(self):
         with tempfile.TemporaryDirectory() as td:

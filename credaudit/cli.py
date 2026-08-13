@@ -181,7 +181,8 @@ Advanced Features:
   --scan-archives         Enable scanning inside ZIP/RAR archives (optional)
   --archive-depth N       How deep to unpack nested archives
   --no-cache              Force full rescan (ignore cache)
-  --fast                  Fast defaults: .txt only, 10 KB max files, short timeout
+  --fast                  Fast directory defaults: .txt only, 10 KB max files, short timeout
+                          Explicit file targets are scanned directly.
   --full, --standard      Use full configured scan scope instead of fast defaults
 Rule Selection:
   --only-rules R1 [R2 ...]  Restrict scanning to specific rule names or indices (from `credaudit rules`).
@@ -244,7 +245,7 @@ def parse_common_args(p: argparse.ArgumentParser):
                          help='Allow raw matched values in reports and cache; use only for internal remediation')
     speed = p.add_mutually_exclusive_group()
     speed.add_argument('--fast', action='store_true',
-                       help='Fast defaults: .txt only, max 10 KB per file, short timeout (default)')
+                       help='Fast directory defaults: .txt only, max 10 KB per file, short timeout; explicit file targets are scanned directly (default)')
     speed.add_argument('--full', '--standard', dest='full', action='store_true',
                        help='Use full configured scan scope instead of fast defaults')
     p.add_argument('--include-ext', nargs='*', help='Only scan these extensions (.txt .json .env ...)')
@@ -396,11 +397,12 @@ def main(argv=None)->int:
             args.fast = True
         ignore_globs = load_ignore_file(args.ignore_file) if args.ignore_file else []
         target_path = args.path or args.target or '.'
+        target_is_file = os.path.isfile(target_path)
         console_mode = args.formats is None
         formats = args.formats or []
         timestamp_reports = bool(formats) if args.timestamp is None else bool(args.timestamp)
         if args.fast and not args.include_ext and not args.include_glob:
-            include_exts = ['.txt']
+            include_exts = [] if target_is_file else ['.txt']
         elif args.include_glob and not args.include_ext:
             include_exts = []
         else:
@@ -412,6 +414,8 @@ def main(argv=None)->int:
             max_size_bytes = args.max_size_kb * 1024
         elif args.max_size is not None:
             max_size_bytes = args.max_size * 1024 * 1024
+        elif args.fast and target_is_file:
+            max_size_bytes = None
         elif args.fast:
             max_size_bytes = 10 * 1024
         else:
