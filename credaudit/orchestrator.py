@@ -142,10 +142,33 @@ def _scan_file_runner(q: Queue, p, ent_min, ent_thr, har_include, har_max_body_b
         pass
 
 
+def _inline_timeout_text_limit() -> int:
+    try:
+        return int(os.environ.get("CREDAUDIT_INLINE_TEXT_TIMEOUT_MAX_BYTES", str(1024 * 1024)))
+    except Exception:
+        return 1024 * 1024
+
+
+def _can_scan_inline_with_timeout(path: str) -> bool:
+    if os.path.splitext(path)[1].lower() not in TEXT_EXTS:
+        return False
+    try:
+        return os.path.getsize(path) <= _inline_timeout_text_limit()
+    except Exception:
+        return False
+
+
 def _scan_file(p, ent_min, ent_thr, har_include: str | None = 'both', har_max_body_bytes: int | None = None, rule_level: int | None = None, per_file_timeout: float | None = None, only_rules=None):
     # If no timeout configured, run inline in this process (original behavior)
     if not per_file_timeout or per_file_timeout <= 0:
         return _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level, only_rules)
+    if _can_scan_inline_with_timeout(p):
+        try:
+            return _scan_file_inner(p, ent_min, ent_thr, har_include, har_max_body_bytes, rule_level, only_rules)
+        except KeyboardInterrupt:
+            return p, [], 'interrupted'
+        except Exception:
+            return p, [], 'error'
     # Run actual scan in a child process so we can terminate on timeout
     try:
         q: Queue = Queue(maxsize=1)

@@ -18,6 +18,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Changed
 - File discovery now filters paths through a bounded worker queue instead of materializing every discovered file up front.
+- Small text files now avoid the expensive nested timeout subprocess path while heavier parsers and large files keep process isolation.
 - Text scanning now resolves match line numbers from precomputed line starts instead of repeatedly recounting newlines.
 - UTF-8 text extraction now avoids unnecessary fallback decoding work for ordinary text files.
 

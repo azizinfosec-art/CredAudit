@@ -41,6 +41,32 @@ class TestOrchestratorWorkers(unittest.TestCase):
 
             self.assertEqual([Path(p).name for p in files], ["secret.txt"])
 
+    def test_small_text_timeout_scans_inline_without_child_process(self):
+        original = orchestrator._scan_file_inner
+        calls = []
+
+        def fake_scan_file_inner(*args, **kwargs):
+            calls.append(args)
+            return args[0], [{"rule": "PasswordValueAssignment"}], "ok"
+
+        try:
+            orchestrator._scan_file_inner = fake_scan_file_inner
+            with tempfile.TemporaryDirectory() as td:
+                path = Path(td) / "secret.txt"
+                path.write_text("password: Inline123!\n", encoding="utf-8")
+
+                result = orchestrator._scan_file(
+                    str(path),
+                    20,
+                    4.0,
+                    per_file_timeout=2.0,
+                )
+
+            self.assertTrue(calls)
+            self.assertEqual(result[2], "ok")
+        finally:
+            orchestrator._scan_file_inner = original
+
 
 if __name__ == "__main__":
     unittest.main()
