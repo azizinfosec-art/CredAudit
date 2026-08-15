@@ -129,6 +129,13 @@ class TestCliScan(unittest.TestCase):
             arr = load_json_array(j)
             self.assertTrue(any(f.get("rule") == "PasswordValueAssignment" for f in arr))
 
+    def test_examples_command_prints_copy_paste_commands(self):
+        res = run_cli(["examples", "--no-banner"])
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertIn("CredAudit example commands", res.stdout)
+        self.assertIn("credaudit ./client-data", res.stdout)
+        self.assertIn("credaudit scan -p . --full --safe --formats sarif", res.stdout)
+
     def test_utf16_text_file_detects_password_assignment(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)

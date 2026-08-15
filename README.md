@@ -54,12 +54,14 @@ From this repository:
 python -m pip install --upgrade pip
 python -m pip install -e .
 credaudit --version
+credaudit examples
 ```
 
 If the `credaudit` command is not on `PATH`, run it as a module:
 
 ```sh
 python -m credaudit --version
+python -m credaudit examples
 python -m credaudit ./client-data
 ```
 
@@ -167,6 +169,14 @@ credaudit rules
 ```
 
 Rule names or indexes can be passed to `--only-rules`.
+
+### `credaudit examples`
+
+Print copy-paste commands for the safest common workflows after installation.
+
+```sh
+credaudit examples
+```
 
 ## Practical Recipes
 

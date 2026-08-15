@@ -6,6 +6,9 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ## [0.6.3] - 2026-08-16 (Asia/Riyadh, GMT+3)
 
+### Added
+- CLI: `credaudit examples` prints copy-paste commands for common safe scans after installation.
+
 ### Fixed
 - Pre-commit scans now block `Critical` findings when the fail threshold is `High`.
 - Text extraction now detects UTF-16 encoded text instead of silently losing password assignments.

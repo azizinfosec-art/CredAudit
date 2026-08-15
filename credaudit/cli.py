@@ -348,6 +348,28 @@ Examples:
   credaudit scan -p ./ --no-cache --formats sarif -o ./reports
       Force rescan of all files and export results in SARIF format
 """
+
+EXAMPLES_TEXT = """CredAudit example commands
+
+Quick safe scan:
+  credaudit ./client-data
+
+Save HTML and JSON reports:
+  credaudit ./client-data --formats html json
+
+Scan a single file:
+  credaudit ./secrets.txt
+
+Run the full configured scope:
+  credaudit scan ./project --full --safe --formats html json
+
+Password-focused audit:
+  credaudit passwords ./client-data
+
+CI/SARIF scan:
+  credaudit scan -p . --full --safe --formats sarif --no-timestamp --fail-on High
+"""
+
 def print_rules():
     try:
         rules = build_rules(3)
@@ -442,7 +464,7 @@ def main(argv=None)->int:
         print(f"CredAudit v{_VERSION}")
         return 0
     argv, intent_name = _expand_password_intent(argv)
-    known_commands = {'scan', 'rules', 'validate', 'convert'}
+    known_commands = {'scan', 'rules', 'validate', 'convert', 'examples'}
     if argv and argv[0] not in known_commands and argv[0] not in ('-h', '--help'):
         argv = ['scan'] + argv
     parser=argparse.ArgumentParser(
@@ -463,6 +485,8 @@ def main(argv=None)->int:
     sub=parser.add_subparsers(dest='command')
     rules_p=sub.add_parser('rules', help='Show built-in detection rules')
     rules_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
+    examples_p=sub.add_parser('examples', help='Show copy-paste example commands')
+    examples_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
     validate_p=sub.add_parser('validate', help='Check config and show enabled parsers')
     validate_p.add_argument('--no-banner', action='store_true', help='Suppress ASCII banner output')
     validate_p.add_argument('--config', default=DEFAULT_CONFIG_PATH, help='Path to config.yaml')
@@ -503,6 +527,10 @@ def main(argv=None)->int:
         if not getattr(args, 'no_banner', False):
             print_banner('default')
         print_rules(); return 0
+    elif args.command=='examples':
+        if not getattr(args, 'no_banner', False):
+            print_banner('default')
+        print(EXAMPLES_TEXT); return 0
     elif args.command=='validate':
         if not getattr(args, 'no_banner', False):
             print_banner('default')
