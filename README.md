@@ -1,223 +1,158 @@
 # CredAudit
 
-CredAudit is a Python command-line tool for finding exposed credentials, API keys, tokens, private keys, and other secrets in files, folders, archives, and HTTP Archive (`.har`) traffic captures.
+CredAudit is a Python command-line tool for finding exposed credentials, API keys,
+tokens, private keys, database passwords, and password-like values in local files.
 
-It is designed for security reviews, client audits, CI checks, and quick evidence gathering. It reads common document and configuration formats, applies built-in detection rules, redacts sensitive values in most reports, and exports findings in formats that are easy to review or integrate with security tooling.
+It is built for security reviews, client audits, evidence triage, and CI checks.
+The safest way to use it is redacted-first: scan locally, avoid storing raw
+secrets by default, and export shareable reports only when needed.
 
-## Main Features
+## Best Default Workflow
 
-- Scan a single file or a full directory tree.
-- Extract text from plaintext files, JSON, `.env`, DOCX, PDF, XLSX, and HAR captures.
-- Optionally scan ZIP, TAR, TGZ, TAR.GZ, and RAR archives.
-- Detect common credential types such as private keys, AWS keys, GitHub tokens, Slack tokens, Stripe keys, JWTs, database URLs with embedded passwords, provider API keys, password assignments, and high-entropy strings.
-- Choose scan sensitivity with cautious, balanced, and aggressive levels.
-- Limit scans by extension, include glob, exclude glob, ignore file, and maximum file size.
-- Generate JSON, CSV, HTML, and SARIF reports.
-- Stream findings to NDJSON during large scans.
-- Reuse cached results for unchanged files to speed up repeated scans.
-- Fail a CI job when findings meet a selected severity threshold.
-
-## Requirements
-
-- Python 3.10 or later.
-- Supported operating systems: Windows, Kali Linux, other Linux distributions, and macOS.
-- Package dependencies are installed automatically from `pyproject.toml`.
-- RAR archive scanning may require an external `unrar` or `unar` utility depending on the operating system.
-
-## Installation
-
-### Windows
-
-Install Python 3.10 or later from `python.org` or the Microsoft Store. During installation, enable the option to add Python to `PATH`.
-
-PowerShell or Windows Terminal:
-
-```powershell
-python --version
-python -m pip install --upgrade pip
-python -m pip install .
-credaudit --version
-```
-
-Command Prompt:
-
-```bat
-python --version
-python -m pip install --upgrade pip
-python -m pip install .
-credaudit --version
-```
-
-If `credaudit` is not recognized after installation, run it through Python:
-
-```bat
-python -m credaudit --version
-python -m credaudit C:\path\to\client-data
-```
-
-### Kali Linux
-
-Install system prerequisites:
-
-```sh
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip git
-```
-
-Install CredAudit from this repository:
-
-```sh
-cd CredAudit
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e .
-credaudit --version
-```
-
-Run a safe fast scan:
-
-```sh
-credaudit ./tests/secrets.txt
-```
-
-Optional archive support:
-
-```sh
-sudo apt install -y unar
-```
-
-### Linux and macOS
-
-Install from this repository:
-
-```sh
-python -m pip install .
-```
-
-For development or local testing:
-
-```sh
-python -m pip install -e .
-```
-
-After installation, use the `credaudit` command. You can also run it as a module:
-
-```sh
-python -m credaudit --version
-```
-
-On Windows, PowerShell is not required. You can run CredAudit from PowerShell, Command Prompt, Windows Terminal, or Git Bash as long as Python and the `credaudit` command are available on `PATH`.
-
-## Quick Start
-
-Recommended safe scan for a file:
-
-```sh
-credaudit ./tests/secrets.txt
-```
-
-Recommended safe scan for a folder:
-
-```sh
-credaudit ./project
-```
-
-The simple `credaudit PATH` command runs a scan in fast safe/redacted mode. The `credaudit scan PATH` form uses the same safe defaults unless you explicitly choose otherwise. By default CredAudit scans `.txt` files only, skips files larger than 10 KB, uses a 2-second per-file timeout, skips common generated folders, prints redacted findings on the screen, streams redacted findings to NDJSON, and avoids writing raw secrets into report data or cache.
-
-NDJSON is written by default to `./credaudit_out/findings.ndjson`. If you want final report files, choose one or more formats explicitly:
-
-```sh
-credaudit ./project --formats html csv json
-```
-
-Output files are written to `./credaudit_out` by default:
-
-- `findings.ndjson` - streamed findings when no timestamp is used.
-- `findings_YYYYMMDD_HHMMSS.ndjson` - streamed findings when timestamped reports are enabled.
-- `report_YYYYMMDD_HHMMSS.html` - interactive browser report.
-- `report_YYYYMMDD_HHMMSS.json` - finding data. In safe mode, matches and context are redacted.
-- `report_YYYYMMDD_HHMMSS.csv` - redacted tabular report.
-- `report_YYYYMMDD_HHMMSS.sarif` - SARIF 2.1.0 when requested.
-
-When report files are created, CredAudit prints clickable `file:///...` URLs in the terminal for each generated format.
-
-Timestamped report filenames are the default when `--formats` is used. Add `--no-timestamp` when you intentionally want fixed filenames such as `report.html`.
-
-Advanced users can still run the full configured scan scope:
-
-```sh
-credaudit scan -p ./project --full --safe --formats html json csv
-```
-
-Use `--raw` only when exact secret values are required for internal remediation evidence:
-
-```sh
-credaudit scan -p ./project --full --raw --formats html json csv
-```
-
-## Typical Client Workflow
-
-1. Validate the local configuration:
-
-   ```sh
-   credaudit validate
-   ```
-
-2. Review available detection rules:
-
-   ```sh
-   credaudit rules
-   ```
-
-3. Run a dry scan to confirm scope:
-
-   ```sh
-   credaudit ./client-data --list
-   ```
-
-4. Run the audit and review the redacted CLI results:
-
-   ```sh
-   credaudit ./client-data
-   ```
-
-5. Export an HTML report when needed:
-
-   ```sh
-   credaudit ./client-data --formats html csv json
-   ```
-
-6. Open the HTML report using the `HTML: file:///...` URL printed under `Report URLs`.
-
-7. Triage high and medium severity findings first, then use the file path and line number in each report row to remediate the source files.
-
-## Commands
-
-### `credaudit PATH`
-
-Runs a fast, safe, redacted scan with minimal command-line input.
+Use this for most first-pass audits:
 
 ```sh
 credaudit ./client-data
 ```
 
-This is the recommended command for normal client use.
+That command uses safe fast defaults:
 
-Default behavior for this shortcut:
-
-- Scans `.txt` files only.
-- Skips files larger than 10 KB.
-- Stops scanning any single file after 2 seconds.
-- Skips common generated folders such as `.git`, `.venv`, `node_modules`, `build`, `dist`, and `*.egg-info`.
-- Prints redacted findings in the CLI.
+- Redacts findings in console output.
 - Streams redacted findings to `credaudit_out/findings.ndjson`.
-- Writes final HTML/CSV/JSON/SARIF report files only when `--formats` is used.
-- Does not write the findings cache.
+- Scans directory targets as small `.txt` files only, up to 10 KB each.
+- Scans explicit file targets directly, regardless of extension.
+- Uses a 2 second per-file timeout.
+- Skips common generated folders such as `.git`, `.venv`, `node_modules`,
+  `build`, `dist`, and `credaudit_out`.
+- Does not write a raw findings cache.
+
+When you need a browser report:
+
+```sh
+credaudit ./client-data --formats html csv json
+```
+
+Open the `HTML: file:///...` link printed at the end of the scan.
+
+Use `--raw` only for internal remediation evidence where exact secret values are
+required:
+
+```sh
+credaudit ./client-data --full --raw --formats html json
+```
+
+Raw mode can write secret values into JSON, HTML data, and the cache. Treat those
+outputs as sensitive.
+
+## Installation
+
+CredAudit requires Python 3.10 or newer.
+
+From this repository:
+
+```sh
+python -m pip install --upgrade pip
+python -m pip install -e .
+credaudit --version
+```
+
+If the `credaudit` command is not on `PATH`, run it as a module:
+
+```sh
+python -m credaudit --version
+python -m credaudit ./client-data
+```
+
+On Kali or Debian/Ubuntu:
+
+```sh
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -e .
+```
+
+RAR archive scanning may require an external `unrar` or `unar` utility.
+
+## First Audit Checklist
+
+1. Validate configuration:
+
+   ```sh
+   credaudit validate
+   ```
+
+2. Review available rules:
+
+   ```sh
+   credaudit rules
+   ```
+
+3. Preview scope before scanning a large folder:
+
+   ```sh
+   credaudit ./client-data --list
+   ```
+
+4. Run the default safe scan:
+
+   ```sh
+   credaudit ./client-data
+   ```
+
+5. Generate reports when findings need review or sharing:
+
+   ```sh
+   credaudit ./client-data --formats html csv json
+   ```
+
+6. Remediate by rotating or revoking exposed credentials. Removing them from
+   files is not enough once they have been exposed.
+
+## Commands
+
+### `credaudit PATH`
+
+Shortcut for a safe fast scan. This is the recommended normal command.
+
+```sh
+credaudit ./client-data
+credaudit ./client-data --formats html csv json
+```
+
+### `credaudit scan`
+
+Full scan command with all options. The path can be positional or passed with
+`-p`.
+
+```sh
+credaudit scan ./client-data
+credaudit scan -p ./client-data --full --safe --formats html csv json
+```
+
+### `credaudit passwords`
+
+Password-focused shortcut for small `.txt` evidence dumps. It scans `.txt` files
+up to 5 MB and focuses on password-shaped values, `username:password` pairs, and
+nearby username/password lines.
+
+```sh
+credaudit passwords ./client-data
+credaudit passwords ./client-data --min-confidence 80 --show-evidence
+```
+
+### `credaudit convert`
+
+Convert streamed NDJSON findings into reports without rescanning.
+
+```sh
+credaudit convert --in credaudit_out/findings.ndjson --out credaudit_out/final_report --formats html csv
+```
 
 ### `credaudit validate`
 
-Checks that configuration can be loaded and prints active parser settings.
+Load configuration and print active parser settings.
 
 ```sh
 credaudit validate
@@ -225,577 +160,229 @@ credaudit validate
 
 ### `credaudit rules`
 
-Lists built-in detection rules with their names and descriptions.
+Print rule indexes, names, and descriptions.
 
 ```sh
 credaudit rules
 ```
 
-Rule names can be used with `--only-rules`.
+Rule names or indexes can be passed to `--only-rules`.
 
-### `credaudit scan`
+## Practical Recipes
 
-Runs the scanner against a file or directory with full control over options.
-
-```sh
-credaudit scan ./path-to-scan
-```
-
-The path can be positional (`credaudit scan ./project`) or passed with `-p` (`credaudit scan -p ./project`). This command is safe and fast by default. Directory scans use the small fast scope, while an explicit file target is scanned directly. Add `--full` to use the full configured file scope for directories, and add `--raw` only when raw findings are intentionally needed.
-
-### `credaudit convert`
-
-Converts streamed NDJSON findings into HTML or CSV reports without rescanning.
+Scan one file:
 
 ```sh
-credaudit convert --in credaudit_out/findings.ndjson --out credaudit_out/final_report --formats html csv
-```
-
-This creates `final_report.html` and/or `final_report.csv`.
-
-## Common Usage Examples
-
-Scan one text file:
-
-```sh
-credaudit ./notes.txt
-```
-
-Scan one Excel workbook:
-
-```sh
+credaudit ./secrets.txt
 credaudit ./client-credentials.xlsx
 ```
 
-Detect same-line `username:password` pairs in `.txt` files up to 5 MB:
-
-```text
-admin:Secret123!
-alice@example.com:password
-```
-
-Run:
+Scan common plaintext configuration files:
 
 ```sh
-credaudit ./client-data --include-ext .txt --max-size 5 --only-rules CredentialPair
+credaudit ./project --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --formats html csv json
 ```
 
-Expected CLI finding style:
-
-```text
-High  CredentialPair  1  client-credentials.txt  Se****3!
-High  CredentialPair  2  client-credentials.txt  p****d
-```
-
-Detect a two-line username/password pair in a text file:
-
-```text
-admin
-mISX%%13402
-```
-
-Run:
+Scan Office, PDF, and HAR evidence separately with longer timeouts:
 
 ```sh
-credaudit ./client-credentials.txt
+credaudit ./evidence --include-ext .docx .pdf .xlsx .har --max-size 5 --per-file-timeout 30 --workers 2 --formats html csv json --verbose
 ```
 
-Expected CLI finding style:
-
-```text
-High  UsernameNearPassword  1  client-credentials.txt  a****n
-Low   PasswordCandidate     2  client-credentials.txt  mI****02
-```
-
-`CredentialPair` detects compact same-line credential dumps such as `admin:Secret123!`. `UsernameNearPassword` is a contextual rule. It is reported during a normal scan when a username-like line appears immediately before a detected password or password candidate.
-
-Use the password-search intent when you want CredAudit to choose the password rules for you:
+Run the full configured scan scope:
 
 ```sh
-credaudit passwords ./client-data
+credaudit scan ./project --full --safe --formats html csv json
 ```
 
-This scans `.txt` files up to 5 MB and looks for same-line `username:password` pairs, password-only assignments such as `password: value`, two-line username/password pairs, and standalone password-like candidates. It uses a balanced confidence floor of `50` so weak password candidates are not missed. Raise the floor when you want fewer false positives:
+Run a quieter, high-confidence scan:
 
 ```sh
-credaudit passwords ./client-data --min-confidence 80 --show-evidence
+credaudit ./project --sensitivity 1 --high-confidence
 ```
 
-Scan only `.txt` files in a folder:
+Scan only selected rules:
 
 ```sh
-credaudit ./client-data --include-ext .txt
+credaudit ./project --only-rules PasswordValueAssignment CredentialPair
+credaudit ./project --only-rules 7 13
 ```
 
-Scan only `.env` and JSON files:
+Scan ZIP, TAR, TGZ, TAR.GZ, or RAR archives:
 
 ```sh
-credaudit ./project --include-ext .env .json
+credaudit scan ./artifacts --scan-archives --archive-depth 2 --include-ext .zip .tar .tgz .gz .rar --max-size 100 --formats html csv json
 ```
 
-Scan larger text files by raising the default 10 KB limit:
+Scan HAR response bodies only:
 
 ```sh
-credaudit ./project --max-size-kb 100
+credaudit scan traffic.har --har-include responses --formats html json
 ```
 
-Exclude dependency and cache folders:
-
-```sh
-credaudit ./project --exclude-glob "**/node_modules/**" --exclude-glob "**/__pycache__/**"
-```
-
-Use include globs:
-
-```sh
-credaudit ./project --include-glob "**/*.env" --include-glob "**/*.yaml"
-```
-
-Use an ignore file:
-
-```sh
-credaudit ./project --ignore-file .credauditignore
-```
-
-Skip large files:
-
-```sh
-credaudit ./project --max-size 10
-```
-
-Run a clean safe scan without cache:
-
-```sh
-credaudit ./project --no-cache
-```
-
-Run the full configured scope:
-
-```sh
-credaudit scan ./project --full --safe
-```
-
-Fail CI if any high severity finding is present:
+Fail CI on high or critical findings:
 
 ```sh
 credaudit scan ./src --full --safe --formats sarif json --fail-on High
 ```
 
-Run only selected rules:
-
-```sh
-credaudit ./project --only-rules PasswordAssignment GitHubToken
-```
-
-You can also use numeric rule indexes from `credaudit rules`:
-
-```sh
-credaudit ./project --only-rules 1 3 5
-```
-
-## Folder Size Usage
-
-Use these starting points when choosing a scan command by folder size.
-
-These examples assume the `credaudit` command is installed and available on `PATH`. If your terminal says `credaudit` is not recognized, install the project first:
-
-```sh
-python -m pip install -e .
-```
-
-Or run the same examples as a Python module:
-
-```sh
-python -m credaudit ./client-data
-```
-
-### Light Folder
-
-For a small folder or a first quick check, use the default safe scan:
-
-```sh
-credaudit ./client-data
-```
-
-This uses fast defaults: `.txt` files only, a 10 KB per-file limit, short per-file timeout, generated-folder skips, redacted console output, and no raw-secret cache writes.
-
-Create shareable reports for the same light scan:
-
-```sh
-credaudit ./client-data --formats html csv json
-```
-
-### Medium Folder
-
-For a normal project folder, scan common plaintext-style config and log files first:
-
-```sh
-credaudit ./client-data --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --per-file-timeout 10 --workers 4 --formats html csv json
-```
-
-This keeps safe redaction enabled, scans common audit file types, skips files larger than 10 MB, gives each file up to 10 seconds, and writes review-friendly reports.
-
-Preview the files first if you want to confirm the scope:
-
-```sh
-credaudit ./client-data --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --list
-```
-
-Scan document and workbook files separately when needed:
-
-```sh
-credaudit ./client-data --include-ext .docx .pdf .xlsx .har --max-size 5 --per-file-timeout 30 --workers 2 --formats html csv json --verbose
-```
-
-Excel workbooks can be slow to open when they are large, locked, corrupt, or stored on a cloud/network path. If a workbook stalls, remove `.xlsx` from the folder scan and scan that workbook by itself.
-
-### Huge Folder
-
-For a very large share or evidence dump, keep the scope tight, stream findings while the scan runs, and convert the NDJSON later:
+For very large shares, stream first and convert later:
 
 ```sh
 credaudit ./large-share --include-ext .txt .json .env .yaml .yml .log .cfg .ini --max-size 10 --sensitivity 1 --threads 32 --workers 8 --per-file-timeout 10 --ndjson-out credaudit_out/large_findings.ndjson --ndjson-truncate --no-banner
-```
-
-This scans high-value plaintext-style files, skips files larger than 10 MB, uses cautious rules to reduce noise, writes redacted findings to NDJSON during the scan, and avoids waiting for final report generation before findings are saved.
-
-Convert the streamed results into HTML and CSV after the scan:
-
-```sh
 credaudit convert --in credaudit_out/large_findings.ndjson --out credaudit_out/large_report --formats html csv
 ```
 
-## Scan Options
+## What CredAudit Detects
 
-Important scan flags:
+CredAudit includes built-in rules for:
 
-- `-p, --path PATH` - file or directory to scan.
-- `-o, --output-dir DIR` - output directory. Default: `./credaudit_out`.
-- `--formats json csv html sarif` - one or more final report formats.
-- If `--formats` is omitted, findings are printed on screen and still streamed to NDJSON by default.
-- `--safe, --redacted-only` - write redacted-only reports and skip raw-secret cache writes. This is the default.
-- `--raw` - allow raw matched values in reports and cache. Use only for internal remediation.
-- `--console-limit N` - maximum findings to print on screen when `--formats` is omitted. Default: `50`.
-- `--high-confidence` - show/export only findings with confidence score `>= 80`.
-- `--min-confidence N` - show/export only findings with confidence score `>= N` where `N` is `0-100`.
-- `--show-evidence` - print the evidence reasons behind each confidence score in console mode.
-- `--fast` - use fast directory defaults: `.txt` only, 10 KB max files, 2-second per-file timeout, generated-folder skips, and up to 4 workers. This is the default. Explicit file targets are scanned directly.
-- `--full, --standard` - use the full configured file scope instead of fast file-selection defaults. The per-file timeout remains `2` seconds unless you override it.
-- `--include-ext EXT [...]` - scan only these extensions.
-- `--include-glob PATTERN` - include files matching a glob. Can be repeated.
-- `--exclude-glob PATTERN` - exclude files matching a glob. Can be repeated.
-- `--ignore-file FILE` - load ignore glob patterns from a file.
-- `--max-size MB` - skip files larger than this size.
-- `--max-size-kb KB` - skip files larger than this size in KB.
-- `--threads N` - threads used for file discovery.
-- `--workers N` - worker processes used for scanning.
-- `--list` - dry run. Print files that would be scanned.
-- `--timestamp` - append a timestamp to report filenames. This is the default when `--formats` is used.
-- `--no-timestamp` - use fixed report filenames such as `report.html` and `report.json`.
-- `--fail-on Low|Medium|High|Critical` - exit with code `2` if findings meet or exceed the threshold.
-- `--config PATH` - config file path. Default: `config.yaml`.
-- `--entropy-min-length INT` - minimum token length for entropy detection.
-- `--entropy-threshold FLOAT` - entropy threshold. Default: `4.0`.
-- `--cache-file PATH` - cache file path. Default: `.credaudit_cache.json`.
-- `--scan-archives` - scan supported archive files.
-- `--archive-depth N` - nested archive depth.
-- `--no-cache` - ignore cache and force a full rescan.
-- `--verbose` - print scan details and skip reasons.
-- `--no-banner` - suppress the ASCII banner.
-- `--per-file-timeout SEC` - stop scanning a file after this many seconds. Default: `2`; use `0` to disable.
-- `--only-rules R1 R2 ...` - restrict detection to specific rule names or rule indexes.
-- `--sensitivity 1|2|3` - select cautious, balanced, or aggressive detection.
-- `--har-include both|responses|requests` - choose which HAR bodies to scan.
-- `--har-max-body-bytes N` - maximum HAR request or response body size to scan.
-- `--ndjson-out PATH` - stream findings to a custom NDJSON path while scanning.
-- `--no-ndjson` - disable the default NDJSON stream.
-- `--ndjson-truncate` - clear an explicit NDJSON file before writing. The automatic default NDJSON file is truncated each run unless timestamped.
-- `--ndjson-flush-sec SEC` - time-based NDJSON flush interval.
-- `--ndjson-buffer N` - finding-count NDJSON flush threshold.
-- `--ndjson-include-raw` - include raw matched values in NDJSON when `--raw` is also used.
+- Private keys.
+- AWS access keys and secret access key assignments.
+- GitHub, GitLab, Slack, SendGrid, npm, OpenAI, Telegram, Twilio, Stripe, Google,
+  and Azure token formats.
+- Password, secret, token, and API key assignments.
+- Password-only assignments such as `password: value`, `passwd=value`, and
+  `pwd: value`.
+- Same-line `username:password` pairs.
+- Username-like lines immediately before password-like lines.
+- Database connection strings with embedded passwords.
+- JWTs with valid token structure.
+- High-entropy strings.
+- Low-severity indicators such as username assignments or password keywords.
 
-Intent shortcuts:
+Use `credaudit rules` for the exact rule list in the installed version.
 
-- `credaudit passwords PATH` - password-focused scan for `.txt` files up to 5 MB. Equivalent to a balanced password profile using `CredentialPair`, `PasswordValueAssignment`, `PasswordValueAssignmentLoose`, `UsernameNearPassword`, and `PasswordCandidate` with `--min-confidence 50` unless you override it.
+## File Types
 
-## Sensitivity Levels
+The extractor can read:
 
-Use `--sensitivity` to control how broad the rules should be:
+- Text-like files: `.txt`, `.json`, `.env`, `.log`, `.cfg`, `.ini`, `.yaml`,
+  `.yml`, `.py`, `.js`, `.toml`
+- Documents: `.docx`, `.pdf`, `.xlsx`
+- HTTP archives: `.har`
+- Archives when enabled: `.zip`, `.tar`, `.tgz`, `.tar.gz`, `.rar`
 
-- `1`, `L1`, `low`, or `cautious` - high-confidence rules only. Entropy detection is disabled to reduce noise.
-- `2`, `L2`, `medium`, or `balanced` - default. Includes password/API-key assignment rules and entropy detection.
-- `3`, `L3`, `high`, or `aggressive` - currently similar to balanced, with entropy enabled.
+Important default: directory scans use the fast safe scope unless you widen it
+with `--full`, `--include-ext`, or `--include-glob`.
 
-Example:
+## Output Files
 
-```sh
-credaudit ./project --sensitivity 1
-```
-
-## Confidence And Evidence
-
-Each finding includes a confidence score from `0` to `100`, a `finding_class`, a `validity` value, and an `evidence` list explaining why CredAudit reported it. Use these fields to reduce false positives during review.
-
-Show only high-confidence findings:
-
-```sh
-credaudit ./client-data --high-confidence
-```
-
-Choose your own evidence threshold:
-
-```sh
-credaudit ./client-data --min-confidence 85
-```
-
-Print the evidence reasons in console mode:
-
-```sh
-credaudit ./client-data --min-confidence 80 --show-evidence
-```
-
-Severity is derived from confidence: `Critical` for `95+`, `High` for `80-94`, `Medium` for `50-79`, and `Low` below `50`.
-
-For same-line credential dumps, a high score usually means the line is compact, the left side looks username-like, the right side looks password-like or is a common weak password, and the file context supports credential evidence.
-
-Values that appear directly after password-only keywords such as `password`, `pass`, `pwd`, `passwd`, `passphrase`, or `passcode` receive higher priority and confidence than generic secret assignments. For example, `password: Secret123!` is reported as `PasswordValueAssignment` instead of the broader `PasswordAssignment`.
-
-Header or metadata-style labels such as `Content-Transfer-Encoding: base64` are intentionally capped below high confidence, even though they use a colon. They may be shown as possible findings at lower thresholds, but they should not compete with explicit password evidence.
-
-## What CredAudit Scans
-
-When `PATH` is a directory, the default `credaudit PATH` and `credaudit scan PATH` commands scan `.txt` files only and skip files larger than 10 KB. When `PATH` is a file, CredAudit scans that file directly.
-
-The scanner can also scan these extensions when you pass `--full` to use the configured scope, or when you pass `--include-ext` / `--include-glob` explicitly:
+By default, scans stream redacted NDJSON to:
 
 ```text
-.txt, .json, .env, .docx, .pdf, .xlsx, .har
+credaudit_out/findings.ndjson
 ```
 
-The extractor can also read these plaintext-style extensions when they are included by CLI flag or config:
+When `--formats` is used, reports are timestamped by default:
 
 ```text
-.log, .cfg, .ini, .yaml, .yml, .py, .js, .toml
+credaudit_out/report_YYYYMMDD_HHMMSS.html
+credaudit_out/report_YYYYMMDD_HHMMSS.csv
+credaudit_out/report_YYYYMMDD_HHMMSS.json
+credaudit_out/report_YYYYMMDD_HHMMSS.sarif
+credaudit_out/findings_YYYYMMDD_HHMMSS.ndjson
 ```
 
-Extraction behavior:
-
-- Plaintext files are read with UTF-8, UTF-16, and Latin-1 fallbacks.
-- DOCX files are scanned from paragraph text.
-- PDF files are scanned through `pdfminer.six` text extraction.
-- XLSX files are scanned from cell values, including simple key/value rows such as `password: value` and table layouts where `password` appears among column headers above the value.
-- HAR files are scanned from textual request and response bodies.
-
-## Detection Coverage
-
-CredAudit groups its built-in rules into a few practical categories:
-
-- Private keys - detects exposed PEM private key blocks.
-- Cloud and provider credentials - detects common keys and tokens for services such as AWS, GitHub, Slack, Google, SendGrid, GitLab, npm, OpenAI, Telegram, Twilio, Stripe, and Azure.
-- Password and secret assignments - detects values written near keywords such as `password`, `secret`, `api_key`, and `token`.
-- Password-only assignments - prioritizes values that appear after `password`, `pass`, `pwd`, `passwd`, `passphrase`, or `passcode`.
-- Credential indicators - detects username/login assignments and lines that mention `password` even when no secret value is present.
-- Standalone password candidates - detects values such as `myo@193` and `mISX%%13402` when they look like password strings even without a nearby keyword.
-- Credential pairs in text files - detects compact same-line `username:password` entries and username-like lines immediately before password findings.
-- Database credentials - detects connection strings that include usernames and passwords.
-- JWTs - detects JSON Web Tokens with valid token structure.
-- High-entropy values - detects long random-looking strings that may be secrets.
-
-Use sensitivity level `1` for a quieter, high-confidence scan. Use the default sensitivity level `2` for normal audits.
-
-Username or login assignments are reported as low severity indicators. Lines that mention `password` without a detected value are also reported as low severity indicators. When a real password value is detected on the same line, CredAudit keeps the stronger password finding instead of showing both.
-
-Standalone password candidates are reported as low severity. A candidate must be a compact token, at least 6 characters long, containing letters, at least one digit, and either a symbol or mixed uppercase/lowercase. Email addresses, URLs, package-like names, placeholders, and normal `key=value` assignments are filtered out before this rule is reported.
-
-Same-line text credential pairs such as `admin:Secret123!` are reported as high-severity `CredentialPair` findings. The password side is used as the matched value so safe reports can redact it while keeping enough context to locate the account.
-
-If a password finding appears on a line and the line immediately before it looks like a username, CredAudit reports that previous line as `UsernameNearPassword` with high severity. This catches common text-file pairs such as:
-
-```text
-admin
-mISX%%13402
-```
-
-When more than one rule matches the same secret value on the same file and line, CredAudit keeps one finding and prefers the strongest or most specific rule. For example, a value that matches both `PasswordAssignment` and `PasswordAssignmentLoose` is shown once. Common syntax characters at the edge of a value, such as a trailing comma or semicolon, are ignored for this comparison.
-
-Run `credaudit rules` when you need the exact technical rule names available in the installed version.
-
-## HAR Scanning
-
-CredAudit can scan `.har` files exported from tools such as browsers, Burp Suite, or OWASP ZAP when request or response bodies are included in the capture.
-
-Scan both requests and responses:
+Use fixed report names when needed:
 
 ```sh
-credaudit scan traffic.har --full --safe
+credaudit ./project --formats html csv json --no-timestamp
 ```
 
-Scan only responses:
+Output format notes:
+
+- HTML is best for human review, filtering, and triage.
+- CSV is redacted and useful for spreadsheets.
+- JSON is redacted in safe mode and raw in raw mode.
+- SARIF is useful for CI and code scanning platforms.
+- NDJSON is written as findings are discovered, which is useful for large scans.
+
+See [docs/SCHEMA.md](docs/SCHEMA.md) for output fields.
+
+## Key Options
+
+File selection:
 
 ```sh
-credaudit scan traffic.har --full --safe --har-include responses
+--include-ext .txt .env .json
+--include-glob "**/*.env"
+--exclude-glob "**/node_modules/**"
+--ignore-file .credauditignore
+--max-size 10
+--max-size-kb 100
 ```
 
-Limit the maximum body size scanned per HAR entry:
+Safety and output:
 
 ```sh
-credaudit scan traffic.har --full --safe --har-max-body-bytes 4194304
+--safe
+--raw
+--formats html csv json sarif
+--no-ndjson
+--ndjson-out credaudit_out/findings.ndjson
+--console-limit 100
 ```
 
-The same limit can be set with the `CREDAUDIT_HAR_MAX_BODY_BYTES` environment variable.
-
-HAR finding paths use virtual IDs such as:
-
-```text
-https://example.test/api/login#response
-```
-
-## Archive Scanning
-
-Archive scanning is enabled with `--scan-archives`. Because archive extensions are not in the default include list, include them explicitly when scanning archive files or folders that contain archives.
-
-Example:
+Detection tuning:
 
 ```sh
-credaudit scan ./artifacts --safe --scan-archives --archive-depth 2 --include-ext .zip .tar .tgz .gz .rar --max-size 100
+--sensitivity 1
+--sensitivity 2
+--sensitivity 3
+--high-confidence
+--min-confidence 80
+--show-evidence
+--only-rules PasswordValueAssignment CredentialPair
 ```
 
-For `.tar.gz` specifically, use `--include-ext .gz` or an include glob such as `--include-glob "**/*.tar.gz"`.
-
-Supported archive formats:
-
-- `.zip`
-- `.tar`
-- `.tgz`
-- `.tar.gz`
-- `.rar`
-
-Archive extraction is performed in a temporary directory with path traversal protection. Findings from archives are reported with paths like:
-
-```text
-archive.zip!inner/folder/file.env
-```
-
-## Output Formats
-
-### HTML
-
-The HTML report is an interactive dashboard for review and triage. It includes:
-
-- Severity counts.
-- Search, score filtering, and severity filtering.
-- Rule and file type filters.
-- Sortable table columns.
-- Expandable finding details with evidence and context.
-- Redacted values by default.
-- Optional raw-value reveal in raw mode only.
-- Links to JSON and CSV when those formats are generated in the same run, plus filtered CSV export from the page.
-
-Recommended command:
+Performance:
 
 ```sh
-credaudit ./project --formats html csv json
+--threads 16
+--workers 4
+--per-file-timeout 10
+--no-cache
+--verbose
 ```
 
-The HTML report embeds a limited number of rows for browser performance. The default is `500`. Adjust this with:
+CI:
 
 ```sh
-CREDAUDIT_HTML_MAX_ROWS=1000 credaudit ./project --formats html csv json
+--fail-on Low
+--fail-on Medium
+--fail-on High
+--fail-on Critical
 ```
 
-On Windows PowerShell:
+## Sensitivity, Confidence, And Severity
 
-```powershell
-$env:CREDAUDIT_HTML_MAX_ROWS = "1000"
-credaudit . --formats html csv json
-```
+Sensitivity controls which rules run:
 
-On Windows Command Prompt:
+- `--sensitivity 1` or `cautious`: high-confidence rules, entropy disabled.
+- `--sensitivity 2` or `balanced`: default rule set, entropy enabled.
+- `--sensitivity 3` or `aggressive`: currently similar to balanced.
 
-```bat
-set CREDAUDIT_HTML_MAX_ROWS=1000
-credaudit . --formats html csv json
-```
+Every finding has a confidence score from `0` to `100`, evidence reasons, a
+finding class, and severity. Severity is based on confidence:
 
-### JSON
+- `Critical`: 95+
+- `High`: 80-94
+- `Medium`: 50-79
+- `Low`: below 50
 
-By default, JSON contains redacted finding records. When `--raw` is used, JSON includes the raw `match` value and should be treated as sensitive audit evidence.
-
-Each finding includes:
-
-- `file`
-- `rule`
-- `match`
-- `redacted`
-- `context`
-- `severity`
-- `line`
-
-### CSV
-
-CSV is intended for safer sharing and spreadsheet review. It contains redacted values and redacted context snippets.
-
-Columns:
-
-```text
-file, rule, redacted, severity, line, context
-```
-
-### SARIF
-
-SARIF 2.1.0 is useful for code scanning platforms and CI integrations.
+For cleaner reports:
 
 ```sh
-credaudit scan ./src --full --safe --formats sarif --fail-on High
-```
-
-### NDJSON Streaming
-
-NDJSON is useful for large scans because findings are written while the scan is still running. CredAudit enables this by default for scan-style commands.
-
-```sh
-credaudit ./large-share
-```
-
-By default this writes redacted findings to `credaudit_out/findings.ndjson`. Use `--ndjson-out` when you want a custom path:
-
-```sh
-credaudit ./large-share --ndjson-out credaudit_out/large_findings.ndjson
-```
-
-Use `--no-ndjson` when you want console output only:
-
-```sh
-credaudit ./large-share --no-ndjson
-```
-
-By default, NDJSON contains redacted values and redacted context. Include raw matches only when required in raw mode:
-
-```sh
-credaudit scan -p ./project --full --raw --ndjson-out credaudit_out/findings.ndjson --ndjson-include-raw
-```
-
-Safe mode ignores `--ndjson-include-raw`.
-
-Convert streamed findings later:
-
-```sh
-credaudit convert --in credaudit_out/findings.ndjson --out credaudit_out/full_report --formats html csv
-```
-
-Use `--safe` during conversion if the NDJSON file contains raw matches:
-
-```sh
-credaudit convert --in credaudit_out/findings.ndjson --out credaudit_out/full_report --formats html csv --safe
+credaudit ./client-data --min-confidence 80 --formats html csv
 ```
 
 ## Configuration
 
-CredAudit loads `config.yaml` from the working directory by default. CLI flags override config values for the current run.
+CredAudit loads `config.yaml` from the current working directory unless
+`--config` is provided.
 
-Note: the default safe command path applies fast defaults over the config file unless you pass explicit options such as `--full`, `--include-ext`, `--include-glob`, `--max-size-kb`, or `--per-file-timeout`.
-
-Example:
+Minimal example:
 
 ```yaml
 include_ext: [".txt", ".json", ".env", ".docx", ".pdf", ".xlsx", ".har"]
@@ -808,64 +395,81 @@ entropy_threshold: 4.0
 cache_file: ".credaudit_cache.json"
 ```
 
-Use `--config` to load a different file:
+CLI flags override configuration for the current run:
 
 ```sh
-credaudit ./project --config ./client-config.yaml
+credaudit ./project --config ./client-config.yaml --include-ext .env .json
 ```
 
-## Caching and Performance
+## Security Guidance
 
-CredAudit avoids writing a findings cache in safe mode so raw matches are not stored locally by accident. When `--raw` is used, CredAudit can store file size, modification time, and findings in `.credaudit_cache.json` to speed up repeated internal scans.
+- Prefer `credaudit PATH` or `--safe` for client-facing work.
+- Keep `--raw` reports private and delete them when they are no longer needed.
+- Do not upload raw reports to ticketing systems, chat, or shared drives unless
+  your process explicitly allows it.
+- Rotate or revoke exposed credentials after discovery.
+- Use `--no-cache` when you need a fresh scan or want to avoid cache reuse.
+- Safe mode skips raw cache writes.
 
-- The default command path uses fast mode for directory scans: `.txt` only, 10 KB max files, a 2-second per-file timeout, generated-folder skips, and up to 4 workers. Explicit file targets are scanned directly.
-- In raw mode, unchanged files reuse cached findings.
-- In raw mode, changed files are scanned again.
-- Use `--no-cache` when a clean scan is required.
-- Safe mode skips cache reads and writes to avoid storing raw matches locally.
-- Use `--workers` to control scanning process count.
-- Use `--threads` to control file discovery concurrency.
-- Use `--per-file-timeout` to prevent a single slow or corrupt file from stalling a run.
-- Use `--max-size-kb` to raise or lower the fast-mode file size limit.
+## Troubleshooting
 
-Example for a large share:
+`credaudit` is not recognized:
 
 ```sh
-credaudit /mnt/share --include-ext .txt .json .env .yaml --max-size 10 --sensitivity 1 --threads 32 --workers 8 --ndjson-out credaudit_out/findings.ndjson --no-banner
+python -m credaudit --version
+python -m pip install -e .
 ```
 
-## Exit Codes
-
-- `0` - scan completed and the `--fail-on` threshold was not met.
-- `2` - one or more findings met or exceeded the `--fail-on` severity threshold.
-
-Example:
+No findings were reported:
 
 ```sh
-credaudit scan ./src --full --safe --formats sarif json --fail-on Medium
+credaudit ./client-data --list
+credaudit ./client-data --include-ext .txt .json .env .yaml .yml --max-size 10
 ```
 
-## Security Notes
-
-- For client-facing use, prefer the default safe command: `credaudit PATH`.
-- Safe mode redacts matches and context snippets in generated reports.
-- Values are redacted with a four-star middle mask, such as `se****23`, while keeping enough context for review.
-- Safe mode skips cache reads and writes to avoid storing raw matches in `.credaudit_cache.json`.
-- Raw mode can write raw matched secrets to JSON and HTML report data.
-- CSV contains redacted values and redacted context snippets.
-- NDJSON is redacted by default, but `--raw --ndjson-include-raw` writes raw matches.
-- Remediate exposed credentials by rotating or revoking them, not only by removing them from files.
-
-## Version
-
-Current package version: `0.6.1`.
-
-Print the installed version:
+A scan is too slow:
 
 ```sh
-credaudit --version
+credaudit ./client-data --include-ext .txt .env .json --max-size 10 --per-file-timeout 10 --workers 4
 ```
+
+A workbook, PDF, or HAR is slow or unreadable:
+
+```sh
+credaudit ./specific-file.xlsx --per-file-timeout 30 --verbose --formats html json
+```
+
+Need fewer false positives:
+
+```sh
+credaudit ./client-data --sensitivity 1 --high-confidence
+```
+
+Need more coverage:
+
+```sh
+credaudit ./client-data --full --include-ext .txt .json .env .yaml .yml .docx .pdf .xlsx .har --max-size 20
+```
+
+## Development
+
+Run the standard-library tests:
+
+```sh
+python -m unittest discover -s tests -p "test*.py" -v
+python -m unittest discover -s tests/e2e -p "test*.py" -v
+```
+
+Run the CLI locally:
+
+```sh
+python -m credaudit --version
+python -m credaudit ./tests/secrets.txt
+```
+
+Package metadata lives in `pyproject.toml`. The current package version is
+`0.6.1`.
 
 ## License
 
-MIT. See `LICENSE` for details.
+MIT. See [LICENSE](LICENSE).
