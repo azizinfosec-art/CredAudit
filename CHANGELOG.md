@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning (SemVer). During 0.x, breaking changes are noted but use MINOR version bumps unless 1.0 is proposed.
 
+## [0.6.2] - 2026-08-15 (Asia/Riyadh, GMT+3)
+
+### Added
+- Packaging metadata now includes author, keywords, project URLs, Python version classifiers, and a `dev` optional dependency group.
+- Source distributions now explicitly include the packaged HTML report template.
+- Repository line-ending and binary-file handling is documented through `.gitattributes`.
+
+### Changed
+- README now focuses on the safest default workflow, practical audit recipes, GitHub/CI usage, and troubleshooting.
+- GitHub Actions now runs the standard-library unit and e2e test suites on Python 3.10, 3.11, and 3.12.
+
+### Fixed
+- GitHub Actions SARIF upload now uses fixed report filenames with `--no-timestamp`, matching the upload path.
+- GitHub Actions self-scan is now provider-focused and excludes known fixtures/rule examples to reduce noisy code-scanning alerts.
+- `credaudit validate` now reports configured include extensions and all supported parser extensions more accurately.
+- Cleaned fallback HTML pager labels to avoid mojibake when the external template is unavailable.
+
 ## [0.6.1] - 2026-08-14 (Asia/Riyadh, GMT+3)
 
 ### Changed
@@ -73,14 +90,14 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 
 ### Added
 - CLI: `--only-rules` to restrict detection to specific rules. Accepts names or numeric indices (from `credaudit rules`).
-- HTML: new cyber‑hacker themed dashboard (dark neon, two‑pane layout, sticky header/footer, keyboard shortcuts). Exporter now prefers external template at `credaudit/html_templates/report.html.j2`.
+- HTML: new cyber-hacker themed dashboard (dark neon, two-pane layout, sticky header/footer, keyboard shortcuts). Exporter now prefers external template at `credaudit/html_templates/report.html.j2`.
 - Docs: `docs/SCHEMA.md` defining NDJSON/JSON/CSV/SARIF fields.
-- Tests: end‑to‑end tests for NDJSON/JSON/HTML/HAR/ZIP.
+- Tests: end-to-end tests for NDJSON/JSON/HTML/HAR/ZIP.
 - Formats: `.toml` added to supported text extensions.
 
 ### Changed
-- Rules: `PasswordAssignment` now also matches JSON‑quoted style (e.g., `"password":"value"`) with minimal, safe tweak to reduce misses without adding noise.
-- Exports: deterministic ordering across JSON/CSV/HTML/SARIF (by file → line → rule).
+- Rules: `PasswordAssignment` now also matches JSON-quoted style (e.g., `"password":"value"`) with minimal, safe tweak to reduce misses without adding noise.
+- Exports: deterministic ordering across JSON/CSV/HTML/SARIF (by file -> line -> rule).
 - SARIF: driver version uses the package `__version__`.
 
 ### Fixed
@@ -95,6 +112,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Security
 - None
 
+[0.6.2]: https://github.com/azizinfosec-art/CredAudit/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/azizinfosec-art/CredAudit/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.4.0...v0.5.0

@@ -69,7 +69,7 @@ TEMPLATE = """<!DOCTYPE html>
 <body>
   <div class="topbar">
     <div class="brand">CredAudit</div>
-    <div class="author">By <a href="{{ author_url }}" target="_blank" rel="noopener">{{ author_name }}</a> · v{{ version }}</div>
+    <div class="author">By <a href="{{ author_url }}" target="_blank" rel="noopener">{{ author_name }}</a> | v{{ version }}</div>
   </div>
   <header>
     <h1>CredAudit Report</h1>
@@ -118,7 +118,7 @@ TEMPLATE = """<!DOCTYPE html>
   <div class="summary"><div class="card" id="stats"></div></div>
   <div class="summary">
     <div class="card" id="tips">
-      <b>Tips:</b> Press <code>/</code> or <code>f</code> to focus search · <code>t</code> toggles theme · <code>r</code> shows/hides raw values · <code>Esc</code> clears filters · Click severity cards to toggle · Click headers to sort · Click a value to copy · Use pager and page size to navigate.
+      <b>Tips:</b> Press <code>/</code> or <code>f</code> to focus search | <code>t</code> toggles theme | <code>r</code> shows/hides raw values | <code>Esc</code> clears filters | Click severity cards to toggle | Click headers to sort | Click a value to copy | Use pager and page size to navigate.
     </div>
   </div>
   <table id="tbl">
@@ -278,14 +278,14 @@ TEMPLATE = """<!DOCTYPE html>
       }
       pager.innerHTML='';
       const total = totalPages;
-      pager.appendChild(pageButton('Â« First', 1, page===1));
-      pager.appendChild(pageButton('â€¹ Prev', Math.max(1, page-1), page===1));
+      pager.appendChild(pageButton('<< First', 1, page===1));
+      pager.appendChild(pageButton('< Prev', Math.max(1, page-1), page===1));
       const window = 3; let start = Math.max(1, page - window); let end = Math.min(total, page + window);
-      if(start>1){ pager.appendChild(pageButton('1',1,false,page===1)); if(start>2){ const dots=document.createElement('span'); dots.textContent='â€¦'; dots.style.padding='6px'; pager.appendChild(dots);} }
+      if(start>1){ pager.appendChild(pageButton('1',1,false,page===1)); if(start>2){ const dots=document.createElement('span'); dots.textContent='...'; dots.style.padding='6px'; pager.appendChild(dots);} }
       for(let p=start;p<=end;p++){ pager.appendChild(pageButton(String(p), p, false, p===page)); }
-      if(end<total){ if(end<total-1){ const dots=document.createElement('span'); dots.textContent='â€¦'; dots.style.padding='6px'; pager.appendChild(dots);} pager.appendChild(pageButton(String(total), total, false, page===total)); }
-      pager.appendChild(pageButton('Next â€º', Math.min(total, page+1), page===total));
-      pager.appendChild(pageButton('Last Â»', total, page===total));
+      if(end<total){ if(end<total-1){ const dots=document.createElement('span'); dots.textContent='...'; dots.style.padding='6px'; pager.appendChild(dots);} pager.appendChild(pageButton(String(total), total, false, page===total)); }
+      pager.appendChild(pageButton('Next >', Math.min(total, page+1), page===total));
+      pager.appendChild(pageButton('Last >>', total, page===total));
     }
     function applyFilters(){
       const term=(q.value||'').trim().toLowerCase();

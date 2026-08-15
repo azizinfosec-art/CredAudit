@@ -468,7 +468,7 @@ python -m credaudit ./tests/secrets.txt
 ```
 
 Package metadata lives in `pyproject.toml`. The current package version is
-`0.6.1`.
+`0.6.2`.
 
 ## License
 

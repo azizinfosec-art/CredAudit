@@ -289,15 +289,20 @@ def print_rules():
     if not rules:
         print("No rules available.")
         return
-    print("Active rules (index: name — description)")
+    print("Active rules (index: name - description)")
     for i, r in enumerate(rules, start=1):
         desc = getattr(r, 'description', '') or ''
-        print(f"{i}) {r.name} — {desc}")
+        print(f"{i}) {r.name} - {desc}")
 def do_validate(cfg: Config):
     print("Configuration OK")
-    print("Enabled parsers: .txt .json .env .docx .pdf .xlsx")
+    supported = [
+        ".txt", ".json", ".env", ".log", ".cfg", ".ini", ".yaml", ".yml",
+        ".py", ".js", ".toml", ".docx", ".pdf", ".xlsx", ".har",
+    ]
+    configured = ", ".join(cfg.include_ext or [])
+    print(f"Configured include extensions: {configured or '(none)'}")
+    print(f"Supported parser extensions: {', '.join(supported)}")
     print(f"Workers: {cfg.workers or 'auto'} | Threads: {cfg.threads}")
-    print(f"Include extensions: {', '.join(cfg.include_ext)}")
 def parse_common_args(p: argparse.ArgumentParser):
     p.add_argument('target', nargs='?', help='File or directory to scan')
     p.add_argument('-p','--path', required=False, help='File or directory to scan')

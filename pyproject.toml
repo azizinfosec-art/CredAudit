@@ -4,18 +4,41 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "credaudit"
-version = "0.6.1"
+version = "0.6.2"
 description = "Fast, resilient secret scanner"
 readme = "README.md"
 requires-python = ">=3.10"
+authors = [{ name = "azizinfosec-art" }]
+keywords = ["security", "secret-scanner", "credentials", "audit", "sarif"]
 dependencies = ["jinja2","python-docx","pdfminer.six","openpyxl","pyyaml","rarfile"]
 license = { file = "LICENSE" }
 classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Intended Audience :: Information Technology",
   "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Security",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.urls]
+Homepage = "https://github.com/azizinfosec-art/CredAudit"
+Repository = "https://github.com/azizinfosec-art/CredAudit"
+Issues = "https://github.com/azizinfosec-art/CredAudit/issues"
+Changelog = "https://github.com/azizinfosec-art/CredAudit/blob/main/CHANGELOG.md"
+
 [project.scripts]
 credaudit = "credaudit.cli:main"
 
 [tool.setuptools.packages.find]
 where = [""]
 include = ["credaudit*"]
+
+[tool.setuptools.package-data]
+credaudit = ["html_templates/*.j2"]
