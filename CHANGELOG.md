@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog, and this project adheres to Semantic Versioning (SemVer). During 0.x, breaking changes are noted but use MINOR version bumps unless 1.0 is proposed.
 
+## [0.6.3] - 2026-08-16 (Asia/Riyadh, GMT+3)
+
+### Fixed
+- Pre-commit scans now block `Critical` findings when the fail threshold is `High`.
+- Text extraction now detects UTF-16 encoded text instead of silently losing password assignments.
+- Archive scanning now applies the configured max-size limit to extracted members.
+- ZIP/TAR/RAR archive scans now include extracted `.har` files.
+- Directory discovery now prunes excluded folders before walking them, improving large-repo scans.
+- Rule toggles from `config.yaml` now apply to scan execution, including entropy detection.
+- Cache reuse now respects scanner settings such as selected rules, sensitivity, entropy thresholds, HAR limits, and package version.
+- Timestamped report links now select reports using wall-clock time instead of the monotonic performance timer.
+
+### Changed
+- File discovery now filters paths through a bounded worker queue instead of materializing every discovered file up front.
+- Text scanning now resolves match line numbers from precomputed line starts instead of repeatedly recounting newlines.
+- UTF-8 text extraction now avoids unnecessary fallback decoding work for ordinary text files.
+
+### Tests
+- Added e2e coverage for UTF-16 text files, critical pre-commit blocking, archive HAR members, archive max-size limits, disabled entropy rules, and cache invalidation when selected rules change.
+
 ## [0.6.2] - 2026-08-15 (Asia/Riyadh, GMT+3)
 
 ### Added
@@ -112,6 +132,7 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 ### Security
 - None
 
+[0.6.3]: https://github.com/azizinfosec-art/CredAudit/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/azizinfosec-art/CredAudit/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/azizinfosec-art/CredAudit/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.5.0...v0.6.0

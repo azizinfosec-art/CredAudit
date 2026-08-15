@@ -15,8 +15,8 @@ def run_cli(args, cwd=None):
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
 
 
-def write_file(p: Path, content: str):
-    p.write_text(content, encoding="utf-8")
+def write_file(p: Path, content: str, encoding: str = "utf-8"):
+    p.write_text(content, encoding=encoding)
     return p
 
 
@@ -129,6 +129,26 @@ class TestCliScan(unittest.TestCase):
             arr = load_json_array(j)
             self.assertTrue(any(f.get("rule") == "PasswordValueAssignment" for f in arr))
 
+    def test_utf16_text_file_detects_password_assignment(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            secret = write_file(tmp / "utf16.txt", "password: Secret123!\n", encoding="utf-16")
+            out = tmp / "out"
+            res = run_cli([
+                str(secret),
+                "-o", str(out),
+                "--raw",
+                "--no-cache",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            self.assertTrue(
+                any(f.get("rule") == "PasswordValueAssignment" and f.get("match") == "Secret123!" for f in arr),
+                arr,
+            )
+
     def test_only_rules_filters_findings(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
@@ -144,6 +164,43 @@ class TestCliScan(unittest.TestCase):
             arr = load_json_array(out / "report.json")
             self.assertTrue(arr, "no findings produced")
             self.assertTrue(all(f.get("rule") == "PasswordAssignment" for f in arr))
+
+    def test_cache_is_invalidated_when_only_rules_change(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "secrets.txt", "password: Abcd1234\napi_key=sk-abcde1234567890\n")
+            out = tmp / "out"
+            cache = tmp / "cache.json"
+
+            first = run_cli([
+                "scan", "-p", str(tmp), "-o", str(out),
+                "--cache-file", str(cache),
+                "--formats", "json",
+                "--no-timestamp",
+                "--full",
+                "--raw",
+                "--no-ndjson",
+                "--only-rules", "PasswordAssignment",
+            ])
+            self.assertEqual(first.returncode, 0, first.stderr)
+            first_arr = load_json_array(out / "report.json")
+            self.assertTrue(any(f.get("rule") == "PasswordAssignment" for f in first_arr), first_arr)
+            self.assertFalse(any(f.get("rule") == "APIKeyGeneric" for f in first_arr), first_arr)
+
+            second = run_cli([
+                "scan", "-p", str(tmp), "-o", str(out),
+                "--cache-file", str(cache),
+                "--formats", "json",
+                "--no-timestamp",
+                "--full",
+                "--raw",
+                "--no-ndjson",
+                "--only-rules", "APIKeyGeneric",
+            ])
+            self.assertEqual(second.returncode, 0, second.stderr)
+            second_arr = load_json_array(out / "report.json")
+            self.assertTrue(any(f.get("rule") == "APIKeyGeneric" for f in second_arr), second_arr)
+            self.assertFalse(any(f.get("rule") == "PasswordAssignment" for f in second_arr), second_arr)
 
     def test_safe_shortcut_redacts_json_and_skips_cache(self):
         with tempfile.TemporaryDirectory() as td:
@@ -651,6 +708,21 @@ class TestCliScan(unittest.TestCase):
             self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
             self.assertIn("Critical", res.stdout)
 
+    def test_precommit_blocks_critical_findings(self):
+        repo = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            secret = write_file(tmp / "secrets.txt", "password: Secret123!\n")
+            res = subprocess.run(
+                [sys.executable, "scripts/precommit_scan.py", str(secret)],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(res.returncode, 2, res.stdout + res.stderr)
+            self.assertIn("[Critical]", res.stdout)
+
     def test_shortcut_without_formats_prints_redacted_console(self):
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td)
@@ -790,6 +862,88 @@ class TestCliScan(unittest.TestCase):
             self.assertTrue(arr)
             # Check alias path like a.zip!secrets.txt
             self.assertTrue(any(".zip!" in (f.get("file") or "") for f in arr))
+
+    def test_scan_archive_zip_har_member(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            zpath = tmp / "traffic.zip"
+            har_obj = {
+                "log": {
+                    "version": "1.2",
+                    "creator": {"name": "test", "version": "1.0"},
+                    "entries": [
+                        {
+                            "request": {"method": "GET", "url": "https://example.local/"},
+                            "response": {
+                                "status": 200,
+                                "content": {
+                                    "mimeType": "application/json",
+                                    "text": "{\"password\":\"Abcd1234\"}"
+                                }
+                            }
+                        }
+                    ]
+                }
+            }
+            with zipfile.ZipFile(zpath, "w") as z:
+                z.writestr("traffic.har", json.dumps(har_obj))
+            out = tmp / "out"
+            res = run_cli([
+                "scan", "-p", str(zpath), "-o", str(out), "--no-cache",
+                "--scan-archives", "--archive-depth", "1",
+                "--include-ext", ".zip",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            self.assertTrue(
+                any(f.get("rule") in {"PasswordAssignment", "PasswordValueAssignment"} for f in arr),
+                arr,
+            )
+
+    def test_archive_member_respects_max_size_limit(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            zpath = tmp / "large.zip"
+            with zipfile.ZipFile(zpath, "w", compression=zipfile.ZIP_DEFLATED) as z:
+                z.writestr("large.txt", "password: Secret123!\n" + ("A" * 5000))
+            out = tmp / "out"
+            res = run_cli([
+                "scan", "-p", str(zpath), "-o", str(out), "--no-cache",
+                "--scan-archives", "--archive-depth", "1",
+                "--include-ext", ".zip",
+                "--max-size-kb", "1",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            self.assertEqual(arr, [])
+
+    def test_config_can_disable_entropy_rule(self):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            write_file(tmp / "token.txt", "abcdefghijklmnopqrstuvwxyzABCDEFGH\n")
+            cfg = tmp / "config.yaml"
+            cfg.write_text(
+                "include_ext: ['.txt']\n"
+                "rules:\n"
+                "  enable_entropy: false\n",
+                encoding="utf-8",
+            )
+            out = tmp / "out"
+            res = run_cli([
+                str(tmp),
+                "-o", str(out),
+                "--config", str(cfg),
+                "--raw",
+                "--formats", "json",
+                "--no-timestamp",
+            ])
+            self.assertEqual(res.returncode, 0, res.stderr)
+            arr = load_json_array(out / "report.json")
+            self.assertFalse(any(f.get("rule") == "HighEntropyString" for f in arr), arr)
 
 
 if __name__ == "__main__":

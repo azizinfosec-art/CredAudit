@@ -42,10 +42,43 @@ def redact_finding_record(record: dict) -> dict:
     return out
 def redact_finding_records(records):
     return [redact_finding_record(r) for r in records]
-def iter_files(root_path: str):
+def _dir_matches_glob(path: str, root_path: str, pattern: str) -> bool:
+    pat = str(pattern or "").replace("\\", "/").strip()
+    if not pat:
+        return False
+    norm = os.path.abspath(path).replace("\\", "/")
+    try:
+        rel = os.path.relpath(path, root_path).replace("\\", "/")
+    except Exception:
+        rel = norm
+    candidates = [norm, norm + "/", rel, rel + "/"]
+    patterns = [pat]
+    if pat.startswith("**/"):
+        patterns.append(pat[3:])
+    for active_pat in patterns:
+        if any(fnmatch.fnmatch(candidate, active_pat) for candidate in candidates):
+            return True
+        if active_pat.endswith("/**"):
+            base = active_pat[:-3].rstrip("/")
+            if any(fnmatch.fnmatch(candidate.rstrip("/"), base) for candidate in candidates):
+                return True
+    return False
+
+
+def iter_files(root_path: str, prune_globs=None):
     if os.path.isfile(root_path):
         yield os.path.abspath(root_path); return
-    for dirpath, dirnames, filenames in os.walk(root_path):
+    root_abs = os.path.abspath(root_path)
+    prune_globs = prune_globs or []
+    for dirpath, dirnames, filenames in os.walk(root_abs):
+        if prune_globs:
+            dirnames[:] = [
+                dirname for dirname in dirnames
+                if not any(
+                    _dir_matches_glob(os.path.join(dirpath, dirname), root_abs, pat)
+                    for pat in prune_globs
+                )
+            ]
         for fn in filenames:
             try:
                 yield os.path.abspath(os.path.join(dirpath, fn))

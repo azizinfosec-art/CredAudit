@@ -1,4 +1,5 @@
 import os, re, json, base64
+from bisect import bisect_right
 from dataclasses import dataclass, asdict, field
 from typing import List, Dict, Any, Optional, Iterable
 from .rules import build_rules
@@ -565,15 +566,32 @@ def _looks_like_jwt(token: str)->bool:
         return isinstance(h,dict) and isinstance(p,dict)
     except Exception:
         return False
+
+def _line_starts(text: str) -> List[int]:
+    starts = [0]
+    for m in re.finditer("\n", text or ""):
+        starts.append(m.end())
+    return starts
+
+def _line_number_for_pos(line_starts: List[int], pos: int) -> int:
+    try:
+        return max(1, bisect_right(line_starts, max(0, int(pos))))
+    except Exception:
+        return 1
+
+def _line_context(lines: List[str], line: int, fallback: str) -> str:
+    return lines[line - 1][:200] if 0 < line <= len(lines) else str(fallback or "")[:200]
+
 def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Optional[int] = None, only_rules: Optional[Iterable[str]] = None)->List[Finding]:
     out=[]; lines=text.splitlines(); joined=text
+    line_starts = _line_starts(joined)
     # Select rule set by sensitivity level (None implies default 2)
-    only_set = set([x.strip() for x in (only_rules or []) if str(x).strip()]) if only_rules else None
+    only_set = set([x.strip() for x in (only_rules or []) if str(x).strip()]) if only_rules is not None else None
     for r in build_rules(rule_level):
         if only_set is not None and r.name not in only_set:
             continue
         for m in r.pattern.finditer(joined):
-            raw=m.group(0); s=_finding_match(r.name, m); start=m.start(); line=joined.count('\n',0,start)+1; ctx=lines[line-1][:200] if 0<line<=len(lines) else raw[:200]
+            raw=m.group(0); s=_finding_match(r.name, m); start=m.start(); line=_line_number_for_pos(line_starts,start); ctx=_line_context(lines,line,raw)
             low=raw.lower()
             for bad in ['email=']:
                 if bad in low: break
@@ -604,8 +622,8 @@ def scan_text(path, text, entropy_min_len=20, entropy_thresh=4.0, rule_level: Op
             t = _entropy_match_value(m.group(0))
             if len(t) >= entropy_min_len and shannon_entropy(t) >= entropy_thresh:
                 pos = m.start()
-                line = joined.count('\n', 0, pos) + 1
-                ctx = lines[line-1][:200] if 0 < line <= len(lines) else t[:200]
+                line = _line_number_for_pos(line_starts, pos)
+                ctx = _line_context(lines, line, t)
                 out.append(Finding(path, 'HighEntropyString', t, redact_secret(t), ctx, 'Low', line))
     deduped = dedupe_findings(out)
     password_like_lines = {

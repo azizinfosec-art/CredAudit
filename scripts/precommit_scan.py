@@ -10,7 +10,7 @@ Exit codes:
   2 - Findings at or above threshold (block commit)
 
 Env vars:
-  CREDAUDIT_FAIL_ON: Low|Medium|High (default: High)
+  CREDAUDIT_FAIL_ON: Low|Medium|High|Critical (default: High)
 """
 from __future__ import annotations
 import os
@@ -22,7 +22,7 @@ from credaudit.detection.scan import serialize_findings
 from credaudit.parsers.extract import extract_text_from_file
 from credaudit.detection.scan import scan_text
 
-SEV_ORDER = {"Low": 1, "Medium": 2, "High": 3}
+SEV_ORDER = {"Low": 1, "Medium": 2, "High": 3, "Critical": 4}
 
 
 def main(argv: List[str]) -> int:
@@ -77,4 +77,3 @@ def main(argv: List[str]) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main(sys.argv[1:]))
-

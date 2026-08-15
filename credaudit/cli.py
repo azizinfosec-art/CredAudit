@@ -144,12 +144,79 @@ PASSWORD_INTENT_RULES = [
     "PasswordCandidate",
 ]
 
+PASSWORD_CONFIG_RULES = {
+    "PasswordAssignment",
+    "PasswordAssignmentLoose",
+    "PasswordValueAssignment",
+    "PasswordValueAssignmentLoose",
+    "PasswordKeyword",
+}
+PRIVATE_KEY_CONFIG_RULES = {"PrivateKey"}
+JWT_CONFIG_RULES = {"JWT"}
+CLOUD_TOKEN_CONFIG_RULES = {
+    "APIKeyGeneric",
+    "AWSAccessKeyID",
+    "AWSSecretAccessKey",
+    "AzureSAS",
+    "GitHubToken",
+    "GitLabPAT",
+    "GoogleAPIKey",
+    "NpmToken",
+    "OpenAIKey",
+    "SendGridKey",
+    "SlackToken",
+    "SlackWebhook",
+    "StripeKey",
+    "TelegramBotToken",
+    "TwilioAccountSID",
+    "TwilioAuthToken",
+}
+
 def _has_cli_option(argv, names):
     for arg in argv:
         for name in names:
             if arg == name or arg.startswith(name + "="):
                 return True
     return False
+
+def _parse_only_rules(tokens, rule_level):
+    if not tokens:
+        return None
+    names = [r.name for r in build_rules(rule_level)]
+    selected = []
+    for part in tokens:
+        for token in str(part).split(','):
+            token = token.strip()
+            if not token:
+                continue
+            if token.isdigit() and 1 <= int(token) <= len(names):
+                selected.append(names[int(token) - 1])
+            else:
+                selected.append(token)
+    return list(dict.fromkeys(selected))
+
+def _configured_only_rules(cfg: Config, rule_level, tokens):
+    selected = _parse_only_rules(tokens, rule_level)
+    toggles = getattr(cfg, "rules", None)
+    disabled = set()
+    if toggles is not None:
+        if not getattr(toggles, "enable_password_assignment", True):
+            disabled.update(PASSWORD_CONFIG_RULES)
+        if not getattr(toggles, "enable_jwt", True):
+            disabled.update(JWT_CONFIG_RULES)
+        if not getattr(toggles, "enable_private_keys", True):
+            disabled.update(PRIVATE_KEY_CONFIG_RULES)
+        if not getattr(toggles, "enable_cloud_tokens", True):
+            disabled.update(CLOUD_TOKEN_CONFIG_RULES)
+        if not getattr(toggles, "enable_entropy", True):
+            disabled.add("HighEntropyString")
+    if not disabled:
+        return selected
+    if selected is None:
+        selected = [r.name for r in build_rules(rule_level)]
+        if (rule_level or 2) >= 2:
+            selected.append("HighEntropyString")
+    return [name for name in selected if name not in disabled]
 
 def _expand_password_intent(argv):
     if not argv or argv[0] not in PASSWORD_INTENT_COMMANDS:
@@ -566,14 +633,11 @@ def main(argv=None)->int:
                                         per_file_timeout=per_file_timeout,
                                         safe_report=bool(getattr(args,'safe',False)),
                                         min_confidence=min_confidence,
-                                        only_rules=(
-                                            (lambda tokens: (
-                                                (lambda names: list(dict.fromkeys([
-                                                    (names[int(t)-1] if str(t).isdigit() and 1 <= int(t) <= len(names) else str(t))
-                                                    for part in tokens for t in str(part).split(',') if str(t).strip()
-                                                ])))([r.name for r in build_rules(rule_level)])
-                                            )
-                                            )((getattr(args,'only_rules',[]) or [])) if hasattr(args,'only_rules') and getattr(args,'only_rules',None) else None
+                                        max_size_bytes=max_size_bytes,
+                                        only_rules=_configured_only_rules(
+                                            cfg,
+                                            rule_level,
+                                            getattr(args, 'only_rules', None),
                                         ))
         except KeyboardInterrupt:
             print("\nScan interrupted by user.")
@@ -599,7 +663,7 @@ def main(argv=None)->int:
         conf_txt = f" | Min confidence: {min_confidence}%" if min_confidence is not None else ""
         print(f"Scanned {len(files)} files | Findings: {len(findings)} (C:{cC} H:{cH} M:{cM} L:{cL}) | Sensitivity: {sens_txt}{conf_txt} | Mode: {mode_txt} | Time: {elapsed:.2f}s | Reports: {report_txt}")
         if not console_mode:
-            print_report_links(args.output_dir, formats, timestamp_reports, t_start)
+            print_report_links(args.output_dir, formats, timestamp_reports, wall_started_at)
         if ndjson_out:
             print_ndjson_link(ndjson_out)
         return code

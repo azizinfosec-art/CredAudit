@@ -1,5 +1,7 @@
 import unittest
+import tempfile
 from multiprocessing import Queue
+from pathlib import Path
 
 from credaudit import orchestrator
 
@@ -18,6 +20,26 @@ class TestOrchestratorWorkers(unittest.TestCase):
             self.assertEqual(q.get(timeout=1), ("locked.xlsx", [], "interrupted"))
         finally:
             orchestrator._scan_file_inner = original
+
+    def test_collect_files_prunes_root_excluded_directories(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            keep = root / "keep"
+            skip = root / ".git"
+            keep.mkdir()
+            skip.mkdir()
+            (keep / "secret.txt").write_text("password: Keep123!\n", encoding="utf-8")
+            (skip / "ignored.txt").write_text("password: Skip123!\n", encoding="utf-8")
+
+            files = orchestrator.collect_files(
+                str(root),
+                [".txt"],
+                [],
+                ["**/.git/**"],
+                threads=0,
+            )
+
+            self.assertEqual([Path(p).name for p in files], ["secret.txt"])
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from .utils.common import iter_files, match_globs, normalize_exts, load_ignore_f
 from .parsers.extract import extract_text_from_file, TEXT_EXTS
 from .detection.scan import scan_text, serialize_findings
 from .cache import ScanCache
+from . import __version__ as _VERSION
 
 def _ignore_worker_keyboard_interrupt():
     try:
@@ -32,7 +33,7 @@ def collect_files(
 ) -> List[str]:
     include_exts = normalize_exts(include_exts)
     ignore_globs = (ignore_globs or [])
-    paths = list(iter_files(root_path))
+    paths = iter_files(root_path, prune_globs=list(exclude_globs or []) + list(ignore_globs or []))
     selected: List[str] = []
 
     def check(p):
@@ -56,12 +57,43 @@ def collect_files(
         except Exception:
             return None
 
-    with ThreadPoolExecutor(max_workers=threads) as tp:
-        for res in tp.map(check, paths):
-            if res:
-                selected.append(res)
-                if verbose:
-                    print(res)
+    def add_selected(res):
+        if res:
+            selected.append(res)
+            if verbose:
+                print(res)
+
+    max_workers = max(1, int(threads or 1))
+    if max_workers == 1:
+        for path in paths:
+            add_selected(check(path))
+    else:
+        pending = set()
+        path_iter = iter(paths)
+        max_pending = max_workers * 4
+
+        def submit_next(tp):
+            try:
+                path = next(path_iter)
+            except StopIteration:
+                return False
+            pending.add(tp.submit(check, path))
+            return True
+
+        with ThreadPoolExecutor(max_workers=max_workers) as tp:
+            for _ in range(max_pending):
+                if not submit_next(tp):
+                    break
+            while pending:
+                done, pending = wait(pending, return_when=FIRST_COMPLETED)
+                for fut in done:
+                    try:
+                        add_selected(fut.result())
+                    except Exception:
+                        pass
+                while len(pending) < max_pending:
+                    if not submit_next(tp):
+                        break
     # Deterministic ordering for stable output and --list
     try:
         selected.sort(key=lambda s: s.replace('\\\\','/').lower())
@@ -153,6 +185,37 @@ def _filter_by_confidence(records: List[dict], min_confidence: int | None = None
     return [r for r in (records or []) if _confidence_value(r) >= threshold]
 
 
+def _effective_har_max_body_bytes(value: int | None = None) -> int:
+    if value is not None:
+        try:
+            return int(value)
+        except Exception:
+            return 2 * 1024 * 1024
+    try:
+        return int(os.environ.get('CREDAUDIT_HAR_MAX_BODY_BYTES', str(2 * 1024 * 1024)))
+    except Exception:
+        return 2 * 1024 * 1024
+
+
+def _normalized_only_rules(only_rules) -> List[str] | None:
+    if only_rules is None:
+        return None
+    values = sorted({str(rule).strip() for rule in only_rules if str(rule).strip()})
+    return values
+
+
+def _scan_profile(entropy_min_len, entropy_thresh, har_include, har_max_body_bytes, rule_level, only_rules) -> dict:
+    return {
+        "version": _VERSION,
+        "entropy_min_len": int(entropy_min_len),
+        "entropy_thresh": float(entropy_thresh),
+        "har_include": har_include or "both",
+        "har_max_body_bytes": int(har_max_body_bytes),
+        "rule_level": rule_level,
+        "only_rules": _normalized_only_rules(only_rules),
+    }
+
+
 def scan_paths(
     paths: List[str],
     output_dir: str,
@@ -179,6 +242,7 @@ def scan_paths(
     only_rules = None,
     safe_report: bool = False,
     min_confidence: int | None = None,
+    max_size_bytes: int | None = None,
 ):
     if formats:
         os.makedirs(output_dir, exist_ok=True)
@@ -188,6 +252,15 @@ def scan_paths(
     from .exporters.sarif_exporter import export_sarif
 
     findings_all = []
+    effective_har_max_body_bytes = _effective_har_max_body_bytes(har_max_body_bytes)
+    cache_profile = _scan_profile(
+        entropy_min_len,
+        entropy_thresh,
+        har_include,
+        effective_har_max_body_bytes,
+        rule_level,
+        only_rules,
+    )
     cache_enabled = not no_cache and not safe_report
     cache = ScanCache(cache_file) if cache_enabled else None
     to_scan = []
@@ -195,7 +268,7 @@ def scan_paths(
         to_scan = list(paths)
     else:
         for p in paths:
-            if cache and cache.is_unchanged(p):
+            if cache and cache.is_unchanged(p, cache_profile):
                 cached = cache.get_findings(p)
                 if cached:
                     if min_confidence is not None and any("confidence" not in rec for rec in cached):
@@ -220,7 +293,7 @@ def scan_paths(
         lp = path.lower()
         return lp.endswith('.zip') or lp.endswith('.rar') or lp.endswith('.tar') or lp.endswith('.tgz') or lp.endswith('.tar.gz')
 
-    allowed_exts = set(TEXT_EXTS) | {'.docx', '.pdf', '.xlsx'}
+    allowed_exts = set(TEXT_EXTS) | {'.docx', '.pdf', '.xlsx', '.har'}
 
     def _safe_join(base: str, *parts: str) -> str:
         base_abs = os.path.abspath(base)
@@ -228,6 +301,31 @@ def scan_paths(
         if not (dest == base_abs or dest.startswith(base_abs + os.sep)):
             raise RuntimeError('Unsafe path outside extraction directory')
         return dest
+
+    def _member_too_large(size) -> bool:
+        try:
+            return max_size_bytes is not None and int(size) > int(max_size_bytes)
+        except Exception:
+            return False
+
+    def _copy_limited(src, dest: str) -> bool:
+        total = 0
+        try:
+            with open(dest, 'wb') as dst:
+                while True:
+                    chunk = src.read(1024 * 1024)
+                    if not chunk:
+                        return True
+                    total += len(chunk)
+                    if _member_too_large(total):
+                        return False
+                    dst.write(chunk)
+        finally:
+            if _member_too_large(total):
+                try:
+                    os.remove(dest)
+                except Exception:
+                    pass
 
     def _post_extract(archive_path: str, added: List[Tuple[str, str]], out_dir: str, depth: int) -> List[str]:
         results: List[str] = []
@@ -254,13 +352,17 @@ def scan_paths(
         added: List[Tuple[str, str]] = []
         try:
             with zipfile.ZipFile(zip_path) as z:
-                for n in z.namelist():
+                for info in z.infolist():
+                    n = info.filename
                     if n.endswith('/'):
+                        continue
+                    if _member_too_large(info.file_size):
                         continue
                     dest = _safe_join(out_dir, n)
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
-                    with z.open(n, 'r') as src, open(dest, 'wb') as dst:
-                        dst.write(src.read())
+                    with z.open(n, 'r') as src:
+                        if not _copy_limited(src, dest):
+                            continue
                     added.append((dest, n))
         except Exception:
             return []
@@ -277,13 +379,15 @@ def scan_paths(
                 for m in t.getmembers():
                     if not m.isfile():
                         continue
+                    if _member_too_large(m.size):
+                        continue
                     dest = _safe_join(out_dir, m.name)
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
                     f = t.extractfile(m)
                     if not f:
                         continue
-                    with open(dest, 'wb') as dst:
-                        dst.write(f.read())
+                    if not _copy_limited(f, dest):
+                        continue
                     added.append((dest, m.name))
         except Exception:
             return []
@@ -297,10 +401,13 @@ def scan_paths(
                 for info in rf.infolist():
                     if info.is_dir():
                         continue
+                    if _member_too_large(getattr(info, 'file_size', 0)):
+                        continue
                     dest = _safe_join(out_dir, info.filename)
                     os.makedirs(os.path.dirname(dest), exist_ok=True)
-                    with rf.open(info, 'r') as src, open(dest, 'wb') as dst:
-                        dst.write(src.read())
+                    with rf.open(info, 'r') as src:
+                        if not _copy_limited(src, dest):
+                            continue
                     added.append((dest, info.filename))
         except Exception:
             return []
@@ -376,7 +483,7 @@ def scan_paths(
         pp = ProcessPoolExecutor(max_workers=max_workers, initializer=_ignore_worker_keyboard_interrupt)
         shutdown_done = False
         try:
-            futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, har_max_body_bytes, rule_level, per_file_timeout, only_rules): p for p in to_scan}
+            futs = {pp.submit(_scan_file, p, entropy_min_len, entropy_thresh, har_include, effective_har_max_body_bytes, rule_level, per_file_timeout, only_rules): p for p in to_scan}
             try:
                 pending = set(futs)
                 while pending:
@@ -403,7 +510,7 @@ def scan_paths(
                                         except Exception:
                                             pass
                                 if cache_enabled and cache:
-                                    cache.update(p, f)
+                                    cache.update(p, f, cache_profile)
                             elif st in ('timeout', 'error', 'interrupted'):
                                 if verbose:
                                     print(f"[SKIP] {p}: {st}")

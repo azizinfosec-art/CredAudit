@@ -119,12 +119,70 @@ def _extract_xlsx_text(p):
     return "\n".join(out)
 
 
+def _text_decode_score(text):
+    if not text:
+        return -1000.0
+    length = len(text)
+    ascii_like = 0
+    printable = 0
+    bad_controls = 0
+    for ch in text:
+        code = ord(ch)
+        if ch in "\r\n\t" or 32 <= code <= 126:
+            ascii_like += 1
+        if ch in "\r\n\t" or ch.isprintable():
+            printable += 1
+        if code < 32 and ch not in "\r\n\t":
+            bad_controls += 1
+    nul_count = text.count("\x00")
+    replacement_count = text.count("\ufffd")
+    return (
+        (ascii_like / length) * 2.0
+        + (printable / length)
+        - (nul_count / length) * 8.0
+        - (replacement_count / length) * 6.0
+        - (bad_controls / length) * 4.0
+    )
+
+
 def read_text_with_fallback(p):
-    for enc in ['utf-8','utf-16','latin-1']:
+    try:
+        with open(p, "rb") as f:
+            data = f.read()
+    except Exception:
+        return None
+    if not data:
+        return ""
+
+    bom_encodings = [
+        (b"\xef\xbb\xbf", "utf-8-sig"),
+        (b"\xff\xfe", "utf-16"),
+        (b"\xfe\xff", "utf-16"),
+    ]
+    for bom, enc in bom_encodings:
+        if data.startswith(bom):
+            try:
+                return data.decode(enc)
+            except Exception:
+                break
+
+    if b"\x00" not in data[:4096]:
         try:
-            with open(p,'r',encoding=enc,errors='ignore') as f: return f.read()
-        except Exception: pass
-    return None
+            return data.decode("utf-8")
+        except UnicodeDecodeError:
+            pass
+
+    candidates = []
+    for enc in ("utf-8", "utf-16", "utf-16-le", "utf-16-be", "latin-1"):
+        try:
+            text = data.decode(enc)
+        except Exception:
+            continue
+        candidates.append((_text_decode_score(text), text))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda item: item[0], reverse=True)
+    return candidates[0][1]
 def extract_text_from_file(p):
     ext=os.path.splitext(p)[1].lower()
     try:
