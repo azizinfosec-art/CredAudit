@@ -142,3 +142,8 @@ The format is based on Keep a Changelog, and this project adheres to Semantic Ve
 [0.6.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/azizinfosec-art/CredAudit/compare/v0.3.16...v0.4.0
+## 0.7.0
+
+- Added the public Python Engine API via `from credaudit import scan`.
+- Added `ScanResult` with findings, severity counts, file totals, and timing.
+- Added Engine API tests and usage documentation.

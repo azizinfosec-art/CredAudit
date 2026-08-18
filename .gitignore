@@ -34,6 +34,19 @@ htmlcov/
 credaudit_out/
 *.ndjson
 .credaudit_cache.json
+*.report.json
+*.report.html
+*.report.csv
+*.sarif
+
+# Local secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
 
 # OS junk
 .DS_Store

@@ -77,6 +77,24 @@ python -m pip install -e .
 
 RAR archive scanning may require an external `unrar` or `unar` utility.
 
+## Python Engine API
+
+CredAudit can also be embedded in another Python application. Install the
+package, then call the stable public API:
+
+```python
+from credaudit import scan
+
+result = scan("./project", mode="fast", min_confidence=70)
+
+for finding in result.findings:
+    print(finding["file"], finding["severity"], finding["rule"])
+```
+
+`result.findings` is redacted by default. Use `result.counts` for severity
+totals and `result.files_scanned` for the number of selected files. Supported
+scan modes are `fast` and `full`.
+
 ## First Audit Checklist
 
 1. Validate configuration:
